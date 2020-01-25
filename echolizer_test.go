@@ -23,7 +23,6 @@ func newJSONRequest(method, url string, body interface{}) *http.Request {
 
 func newXMLRequest(method, url string, body interface{}) *http.Request {
 	requestBody, _ := xml.Marshal(body)
-	// ffmt.Puts(string(requestBody))
 	request, _ := http.NewRequest(method, url, bytes.NewReader(requestBody))
 	request.Header.Set("Content-Type", "application/xml")
 

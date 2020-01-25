@@ -2,15 +2,19 @@ package echolizer
 
 import (
 	"encoding/json"
+	"encoding/xml"
+	"errors"
+	"io"
+	"io/ioutil"
 	"net/http/httptest"
 	"net/url"
 	"reflect"
 	"strings"
 	"testing"
 
+	"github.com/clbanning/mxj"
 	"github.com/labstack/echo"
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/ffmt.v1"
 )
 
 type RequestRecorder struct {
@@ -22,7 +26,7 @@ type RequestRecorder struct {
 
 type Body map[string]interface{}
 
-func (b Body) IsEqual(body interface{}) (bool, error) {
+func (b Body) IsJSONEqual(body interface{}) (bool, error) {
 	bodyJSON, err := json.Marshal(body)
 	if err != nil {
 		return false, err
@@ -36,6 +40,22 @@ func (b Body) IsEqual(body interface{}) (bool, error) {
 	return assert.ObjectsAreEqual(expectedRecorderBody, b), nil
 }
 
+func (b Body) IsXMLEqual(body interface{}) (bool, error) {
+	bodyXML, err := xml.Marshal(body)
+	if err != nil {
+		return false, err
+	}
+
+	mv, err := mxj.NewMapXml(bodyXML)
+	if err != nil {
+		return false, err
+	}
+
+	expectedRecorderBody := mv.Old()
+
+	return assert.ObjectsAreEqualValues(b, expectedRecorderBody), nil
+}
+
 func NewRequestRecorder() *RequestRecorder {
 	requestRecorder := &RequestRecorder{}
 	requestRecorder.Body = make(Body)
@@ -44,11 +64,11 @@ func NewRequestRecorder() *RequestRecorder {
 }
 
 func (r RequestRecorder) AssertBodyEqual(t *testing.T, expectedBody interface{}) bool {
+	bodyType := getTagKey(expectedBody)
 
-	contentType := getTagKey(expectedBody)
-	ffmt.Puts(contentType)
+	isEqualFunc := r.getIsEqualFunctionByContentType(bodyType)
 
-	isEqual, err := r.Body.IsEqual(expectedBody)
+	isEqual, err := isEqualFunc(expectedBody)
 	if err != nil {
 		assert.Fail(t, err.Error())
 	}
@@ -82,6 +102,35 @@ func (r *RequestRecorder) setFormParams(formParams url.Values) {
 	r.FormParams = formParams
 }
 
+func (r RequestRecorder) getIsEqualFunctionByContentType(bodyType string) func(body interface{}) (bool, error) {
+	switch bodyType {
+	case "xml":
+		return r.Body.IsXMLEqual
+	case "json":
+		return r.Body.IsJSONEqual
+	default:
+		return func(body interface{}) (bool, error) {
+			return false, errors.New("Unsupported body type")
+		}
+	}
+}
+
+func (r *RequestRecorder) bindXML(from io.ReadCloser) error {
+	body, err := ioutil.ReadAll(from)
+	if err != nil {
+		return err
+	}
+
+	mv, err := mxj.NewMapXml(body)
+	if err != nil {
+		return err
+	}
+
+	r.Body = mv.Old()
+
+	return nil
+}
+
 func NewEcholizer(httpMethod, path string, statusCode int) (*httptest.Server, *RequestRecorder) {
 	requestRecorder := NewRequestRecorder()
 	e := createEcho(requestRecorder, httpMethod, path, statusCode, nil)
@@ -98,9 +147,11 @@ func createEcho(requestRecorder *RequestRecorder, httpMethod, path string, statu
 	e := echo.New()
 
 	e.Add(httpMethod, path, func(ctx echo.Context) error {
-		ctx.Bind(&requestRecorder.Body)
-
-		ffmt.Puts(requestRecorder.Body)
+		if ctx.Request().Header.Get(echo.HeaderContentType) == echo.MIMEApplicationXML {
+			requestRecorder.bindXML(ctx.Request().Body)
+		} else {
+			ctx.Bind(&requestRecorder.Body)
+		}
 
 		requestRecorder.setParams(ctx.ParamNames(), ctx.ParamValues())
 		requestRecorder.setQueryParams(ctx.QueryParams())
