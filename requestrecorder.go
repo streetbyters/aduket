@@ -107,6 +107,10 @@ func (r *RequestRecorder) setFormParams(formParams url.Values) {
 	r.FormParams = formParams
 }
 
+func (r *RequestRecorder) setData(b []byte) {
+	r.Data = b
+}
+
 func (r *RequestRecorder) bindXML(from io.ReadCloser) error {
 	body, err := ioutil.ReadAll(from)
 	if err != nil {

@@ -47,10 +47,11 @@ func createEcho(requestRecorder *RequestRecorder, httpMethod, path string, statu
 		if ctx.Request().Header.Get(echo.HeaderContentType) == echo.MIMEApplicationXML {
 			requestRecorder.bindXML(ctx.Request().Body)
 		} else if err := ctx.Bind(&requestRecorder.Body); err != nil {
-			requestRecorder.Data, err = ioutil.ReadAll(ctx.Request().Body)
+			data, err := ioutil.ReadAll(ctx.Request().Body)
 			if err != nil {
 				return err
 			}
+			requestRecorder.setData(data)
 		}
 
 		requestRecorder.setParams(ctx.ParamNames(), ctx.ParamValues())
