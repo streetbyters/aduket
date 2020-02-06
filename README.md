@@ -4,7 +4,7 @@
 </p>
 <center>
     <h1>Aduket</h1>
-    <b>Straight-forward HTTP client testing with assertions included!</b>
+    <b>Straight-forward HTTP client testing, assertions included!</b>
 </center>
 
 Simple `httptest.Server` wrapper with a little request recorder spice on it. No special DSL, no complex API to learn. Just create a server and fire your request like an **Hadouken** then assert them.
