@@ -3,22 +3,18 @@ package echolizer
 import (
 	"encoding/json"
 	"encoding/xml"
-	"errors"
 	"io"
 	"io/ioutil"
-	"net/http/httptest"
 	"net/url"
-	"reflect"
-	"strings"
 	"testing"
 
 	"github.com/clbanning/mxj"
-	"github.com/labstack/echo"
 	"github.com/stretchr/testify/assert"
 )
 
 type RequestRecorder struct {
 	Body        Body
+	Data        []byte
 	Params      map[string]string
 	QueryParams url.Values
 	FormParams  url.Values
@@ -37,7 +33,7 @@ func (b Body) IsJSONEqual(body interface{}) (bool, error) {
 		return false, err
 	}
 
-	return assert.ObjectsAreEqual(expectedRecorderBody, b), nil
+	return assert.ObjectsAreEqualValues(expectedRecorderBody, b), nil
 }
 
 func (b Body) IsXMLEqual(body interface{}) (bool, error) {
@@ -63,12 +59,21 @@ func NewRequestRecorder() *RequestRecorder {
 	return requestRecorder
 }
 
-func (r RequestRecorder) AssertBodyEqual(t *testing.T, expectedBody interface{}) bool {
-	bodyType := getTagKey(expectedBody)
+func (r RequestRecorder) AssertStringBodyEqual(t *testing.T, expectedBody string) bool {
+	return assert.Equal(t, expectedBody, string(r.Data))
+}
 
-	isEqualFunc := r.getIsEqualFunctionByContentType(bodyType)
+func (r RequestRecorder) AssertJSONBodyEqual(t *testing.T, expectedBody interface{}) bool {
+	isEqual, err := r.Body.IsJSONEqual(expectedBody)
+	if err != nil {
+		assert.Fail(t, err.Error())
+	}
 
-	isEqual, err := isEqualFunc(expectedBody)
+	return assert.True(t, isEqual)
+}
+
+func (r RequestRecorder) AssertXMLBodyEqual(t *testing.T, expectedXMLBody interface{}) bool {
+	isEqual, err := r.Body.IsXMLEqual(expectedXMLBody)
 	if err != nil {
 		assert.Fail(t, err.Error())
 	}
@@ -102,19 +107,6 @@ func (r *RequestRecorder) setFormParams(formParams url.Values) {
 	r.FormParams = formParams
 }
 
-func (r RequestRecorder) getIsEqualFunctionByContentType(bodyType string) func(body interface{}) (bool, error) {
-	switch bodyType {
-	case "xml":
-		return r.Body.IsXMLEqual
-	case "json":
-		return r.Body.IsJSONEqual
-	default:
-		return func(body interface{}) (bool, error) {
-			return false, errors.New("Unsupported body type")
-		}
-	}
-}
-
 func (r *RequestRecorder) bindXML(from io.ReadCloser) error {
 	body, err := ioutil.ReadAll(from)
 	if err != nil {
@@ -129,44 +121,4 @@ func (r *RequestRecorder) bindXML(from io.ReadCloser) error {
 	r.Body = mv.Old()
 
 	return nil
-}
-
-func NewEcholizer(httpMethod, path string, statusCode int) (*httptest.Server, *RequestRecorder) {
-	requestRecorder := NewRequestRecorder()
-	e := createEcho(requestRecorder, httpMethod, path, statusCode, nil)
-	return httptest.NewServer(e), requestRecorder
-}
-
-func NewEcholizerWithResponse(httpMethod, path string, statusCode int, response interface{}) (*httptest.Server, *RequestRecorder) {
-	requestRecorder := NewRequestRecorder()
-	e := createEcho(requestRecorder, httpMethod, path, statusCode, response)
-	return httptest.NewServer(e), requestRecorder
-}
-
-func createEcho(requestRecorder *RequestRecorder, httpMethod, path string, statusCode int, response interface{}) *echo.Echo {
-	e := echo.New()
-
-	e.Add(httpMethod, path, func(ctx echo.Context) error {
-		if ctx.Request().Header.Get(echo.HeaderContentType) == echo.MIMEApplicationXML {
-			requestRecorder.bindXML(ctx.Request().Body)
-		} else {
-			ctx.Bind(&requestRecorder.Body)
-		}
-
-		requestRecorder.setParams(ctx.ParamNames(), ctx.ParamValues())
-		requestRecorder.setQueryParams(ctx.QueryParams())
-		requestRecorder.setFormParams(ctx.Request().Form)
-
-		if response == nil {
-			return ctx.NoContent(statusCode)
-		}
-
-		return ctx.JSON(statusCode, response)
-	})
-
-	return e
-}
-
-func getTagKey(i interface{}) string {
-	return strings.Split(string(reflect.TypeOf(i).Field(0).Tag), ":")[0]
 }
