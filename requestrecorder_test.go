@@ -30,7 +30,7 @@ func TestAssertJSONBodyEqual(t *testing.T) {
 	assert.Equal(t, http.StatusCreated, res.StatusCode)
 }
 
-func TestStringBodyEqual(t *testing.T) {
+func TestAssertStringBodyEqual(t *testing.T) {
 
 	server, requestRecorder := NewServer(http.MethodPost, "/user", http.StatusCreated, NoResponse())
 
