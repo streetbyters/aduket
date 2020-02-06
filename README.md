@@ -1,11 +1,13 @@
+<p align="center">
+    <b>Aduket</b>
+    <br>
+    <img height="200px" src="assets/aduket.gif">
+
+</p>
 
 <p align="center">
-  <img height="200px" src="assets/aduket.gif">
+    <i>Straight-forward HTTP client testing, assertions included!</i>
 </p>
-<center>
-    <h1>Aduket</h1>
-    <b>Straight-forward HTTP client testing, assertions included!</b>
-</center>
 
 Simple `httptest.Server` wrapper with a little request recorder spice on it. No special DSL, no complex API to learn. Just create a server and fire your request like an **Hadouken** then assert them.
 
