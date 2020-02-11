@@ -22,7 +22,7 @@ Simple `httptest.Server` wrapper with a little request recorder spice on it. No 
  - [ ] Add meaningful error messages to assertions
 
 ## LICENSE
-Copyright 2019 StreetByters Community
+Copyright 2020 StreetByters Community
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
