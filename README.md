@@ -12,13 +12,13 @@ Simple `httptest.Server` wrapper with a little request recorder spice on it. No 
 ## TODO
  - [ ] Add example usages
  - [ ] Add docs
- - [ ] Add response headers to NewServer
+ - [x] Add response headers to NewServer
  - [ ] Add request header assertions
  - [ ] Add multiple request assertion logic
+ - [x] Add multiple route registration to server
  - [ ] Extract Request().Body to requestRecorder.Body binding logic to CustomBinder
  - [ ] Add NewServerWithTimeout for testing API timeouts
  - [ ] http.RoundTripper interface can be implemented to mock arbitrary URLs
- - [ ] A Builder can be written to NewServer for ease of use
 
 ## LICENSE
 Copyright 2019 StreetByters Community
