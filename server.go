@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"io/ioutil"
+	"net/http"
 	"net/http/httptest"
 
 	"github.com/labstack/echo"
@@ -47,6 +48,97 @@ func ByteResponse(b []byte) responseBody {
 
 func NoResponse() responseBody {
 	return nil
+}
+
+type route struct {
+	httpMethod string
+	path       string
+}
+
+type routeResponse struct {
+	statusCode int
+	header     http.Header
+	body       responseBody
+}
+
+type server struct {
+	*httptest.Server
+	routes map[route]routeResponse
+}
+
+type RouteResponseOption func(*routeResponse)
+
+func StatusCode(statusCode int) RouteResponseOption {
+	return func(r *routeResponse) {
+		r.statusCode = statusCode
+	}
+}
+
+func JSONBody(body interface{}) RouteResponseOption {
+	return func(r *routeResponse) {
+		r.body = JSONResponse(body)
+	}
+}
+
+func Header(header http.Header) RouteResponseOption {
+	return func(r *routeResponse) {
+		r.header = header
+	}
+}
+
+func NewServe(responseRules map[route][]RouteResponseOption) (*server, *RequestRecorder) {
+
+	routes := make(map[route]routeResponse)
+
+	for route, responseOption := range responseRules {
+		routeResponse := &routeResponse{}
+		for _, opt := range responseOption {
+			opt(routeResponse)
+		}
+		routes[route] = *routeResponse
+	}
+
+	requestRecorder := NewRequestRecorder()
+	e := echo.New()
+
+	for route, responseRule := range routes {
+		e.Add(route.httpMethod, route.path, func(ctx echo.Context) error {
+			if ctx.Request().Header.Get(echo.HeaderContentType) == echo.MIMEApplicationXML {
+				requestRecorder.bindXML(ctx.Request().Body)
+			} else if err := ctx.Bind(&requestRecorder.Body); err != nil {
+				data, err := ioutil.ReadAll(ctx.Request().Body)
+				if err != nil {
+					return err
+				}
+				requestRecorder.setData(data)
+			}
+
+			requestRecorder.setParams(ctx.ParamNames(), ctx.ParamValues())
+			requestRecorder.setQueryParams(ctx.QueryParams())
+			requestRecorder.setFormParams(ctx.Request().Form)
+
+			for key, values := range responseRule.header {
+				for _, value := range values {
+					ctx.Response().Header().Add(key, value)
+				}
+			}
+
+			if responseRule.body == nil {
+				return ctx.NoContent(responseRule.statusCode)
+			}
+
+			ctx.Response().WriteHeader(responseRule.statusCode)
+			_, err := ctx.Response().Write(responseRule.body)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		})
+	}
+	s := &server{httptest.NewServer(e), routes}
+
+	return s, requestRecorder
 }
 
 func NewServer(httpMethod, path string, statusCode int, response responseBody) (*httptest.Server, *RequestRecorder) {

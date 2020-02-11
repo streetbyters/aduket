@@ -115,3 +115,53 @@ func TestServerWithByteResponse(t *testing.T) {
 
 	assert.Equal(t, expectedByteResponse, actualResponseBody)
 }
+
+// func TestServerWithHeader(t *testing.T) {
+// 	expectedHeaders := http.Header{
+// 		"Content-Type": []string{"application/json"},
+// 	}
+
+// 	server, _ := NewServer(http.MethodGet, "/hi", http.StatusOK, NoResponse(), expectedHeaders)
+
+// 	request := newJSONRequest(http.MethodGet, server.URL+"/hi", http.NoBody)
+// 	res, _ := http.DefaultClient.Do(request)
+
+// 	assert.Equal(t, expectedHeaders, res.Header)
+// }
+
+func TestServeWithResponseJSON(t *testing.T) {
+	type UserResponse struct {
+		ID   int    `json:"id"`
+		Name string `json:"name"`
+	}
+
+	expectedStatusCode := http.StatusOK
+	expectedHeader := http.Header{"Content-Type": []string{"application/json", "anan"}}
+	expectedUserResponse := UserResponse{ID: 123, Name: "kalt"}
+
+	server, _ := NewServe(map[route][]RouteResponseOption{
+		{http.MethodGet, "/user"}: {
+			StatusCode(expectedStatusCode),
+			JSONBody(expectedUserResponse),
+			Header(expectedHeader),
+		},
+	})
+
+	request := newJSONRequest(http.MethodGet, server.URL+"/user", http.NoBody)
+	res, _ := http.DefaultClient.Do(request)
+
+	assert.Equal(t, http.StatusOK, res.StatusCode)
+
+	body, _ := ioutil.ReadAll(res.Body)
+
+	actualResponse := UserResponse{}
+	json.Unmarshal(body, &actualResponse)
+
+	assert.Equal(t, expectedUserResponse, actualResponse)
+
+	for key, value := range expectedHeader {
+		actualValue, contains := res.Header[key]
+		assert.True(t, contains)
+		assert.Equal(t, value, actualValue)
+	}
+}
