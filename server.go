@@ -116,6 +116,7 @@ func contextToRequestRecorder(ctx echo.Context, requestRecorder *RequestRecorder
 	requestRecorder.setParams(ctx.ParamNames(), ctx.ParamValues())
 	requestRecorder.setQueryParams(ctx.QueryParams())
 	requestRecorder.setFormParams(ctx.Request().Form)
+	requestRecorder.setHeader(ctx.Request().Header)
 
 	return nil
 }

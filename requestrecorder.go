@@ -21,6 +21,7 @@ import (
 	"encoding/xml"
 	"io"
 	"io/ioutil"
+	"net/http"
 	"net/url"
 	"testing"
 
@@ -30,6 +31,7 @@ import (
 
 type RequestRecorder struct {
 	Body        Body
+	Header      http.Header
 	Data        []byte
 	Params      map[string]string
 	QueryParams url.Values
@@ -109,6 +111,21 @@ func (r RequestRecorder) AssertFormParamEqual(t *testing.T, formParamName string
 	return assert.Equal(t, r.FormParams[formParamName], formValues)
 }
 
+func (r RequestRecorder) AssertHeaderEqual(t *testing.T, expectedHeader http.Header) bool {
+	for key, value := range expectedHeader {
+		actualValue, contains := r.Header[key]
+		if !assert.True(t, contains) {
+			return false
+		}
+
+		if !assert.Equal(t, value, actualValue) {
+			return false
+		}
+	}
+
+	return true
+}
+
 func (r *RequestRecorder) setQueryParams(queryParams url.Values) {
 	r.QueryParams = queryParams
 }
@@ -125,6 +142,10 @@ func (r *RequestRecorder) setFormParams(formParams url.Values) {
 
 func (r *RequestRecorder) setData(b []byte) {
 	r.Data = b
+}
+
+func (r *RequestRecorder) setHeader(header http.Header) {
+	r.Header = header.Clone()
 }
 
 func (r *RequestRecorder) bindXML(from io.ReadCloser) error {

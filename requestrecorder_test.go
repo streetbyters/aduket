@@ -115,3 +115,25 @@ func TestAssertFormParamEqual(t *testing.T) {
 	assert.True(t, requestRecorder.AssertFormParamEqual(tester, "name", []string{"Joe"}))
 	assert.False(t, tester.Failed())
 }
+
+func TestAssertHeaderEqual(t *testing.T) {
+	type UserRequest struct {
+		Name string `json:"name"`
+	}
+
+	server, requestRecorder := NewServer(http.MethodPost, "/user", StatusCode(http.StatusCreated))
+	expectedPayload := UserRequest{Name: "noname"}
+	request := newJSONRequest(http.MethodPost, server.URL+"/user", expectedPayload)
+
+	request.Header.Add("Test", "123")
+
+	http.DefaultClient.Do(request)
+
+	tester := &testing.T{}
+
+	assert.True(t, requestRecorder.AssertHeaderEqual(tester, http.Header{"Test": []string{"123"}}))
+	assert.False(t, tester.Failed())
+
+	assert.False(t, requestRecorder.AssertHeaderEqual(tester, http.Header{"Test": []string{"noo"}}))
+	assert.False(t, requestRecorder.AssertHeaderEqual(tester, http.Header{"West": []string{"123"}}))
+}
