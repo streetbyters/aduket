@@ -50,121 +50,84 @@ func NoResponse() responseBody {
 	return nil
 }
 
-type route struct {
+type Route struct {
 	httpMethod string
 	path       string
 }
 
-type routeResponse struct {
+type responseRule struct {
 	statusCode int
 	header     http.Header
 	body       responseBody
 }
 
-type server struct {
-	*httptest.Server
-	routes map[route]routeResponse
-}
+type ResponseRuleOption func(*responseRule)
 
-type RouteResponseOption func(*routeResponse)
-
-func StatusCode(statusCode int) RouteResponseOption {
-	return func(r *routeResponse) {
+func StatusCode(statusCode int) ResponseRuleOption {
+	return func(r *responseRule) {
 		r.statusCode = statusCode
 	}
 }
 
-func JSONBody(body interface{}) RouteResponseOption {
-	return func(r *routeResponse) {
+func JSONBody(body interface{}) ResponseRuleOption {
+	return func(r *responseRule) {
 		r.body = JSONResponse(body)
 	}
 }
 
-func Header(header http.Header) RouteResponseOption {
-	return func(r *routeResponse) {
+func XMLBody(body interface{}) ResponseRuleOption {
+	return func(r *responseRule) {
+		r.body = XMLResponse(body)
+	}
+}
+
+func Header(header http.Header) ResponseRuleOption {
+	return func(r *responseRule) {
 		r.header = header
 	}
 }
 
-func NewServe(responseRules map[route][]RouteResponseOption) (*server, *RequestRecorder) {
-
-	routes := make(map[route]routeResponse)
-
-	for route, responseOption := range responseRules {
-		routeResponse := &routeResponse{}
-		for _, opt := range responseOption {
-			opt(routeResponse)
-		}
-		routes[route] = *routeResponse
-	}
-
+func NewMultiRouteServer(routeResponseOptions map[Route][]ResponseRuleOption) (*httptest.Server, *RequestRecorder) {
 	requestRecorder := NewRequestRecorder()
 	e := echo.New()
 
-	for route, responseRule := range routes {
-		e.Add(route.httpMethod, route.path, func(ctx echo.Context) error {
-			if ctx.Request().Header.Get(echo.HeaderContentType) == echo.MIMEApplicationXML {
-				requestRecorder.bindXML(ctx.Request().Body)
-			} else if err := ctx.Bind(&requestRecorder.Body); err != nil {
-				data, err := ioutil.ReadAll(ctx.Request().Body)
-				if err != nil {
-					return err
-				}
-				requestRecorder.setData(data)
-			}
-
-			requestRecorder.setParams(ctx.ParamNames(), ctx.ParamValues())
-			requestRecorder.setQueryParams(ctx.QueryParams())
-			requestRecorder.setFormParams(ctx.Request().Form)
-
-			for key, values := range responseRule.header {
-				for _, value := range values {
-					ctx.Response().Header().Add(key, value)
-				}
-			}
-
-			if responseRule.body == nil {
-				return ctx.NoContent(responseRule.statusCode)
-			}
-
-			ctx.Response().WriteHeader(responseRule.statusCode)
-			_, err := ctx.Response().Write(responseRule.body)
-			if err != nil {
-				return err
-			}
-
-			return nil
-		})
+	routeResponseRules := createRouteResponseRules(routeResponseOptions)
+	for route, responseRule := range routeResponseRules {
+		e.Add(route.httpMethod, route.path, spyHandler(requestRecorder, responseRule.header, responseRule.body, responseRule.statusCode))
 	}
-	s := &server{httptest.NewServer(e), routes}
 
-	return s, requestRecorder
+	return httptest.NewServer(e), requestRecorder
+}
+
+func createRouteResponseRules(routeResponseOptions map[Route][]ResponseRuleOption) map[Route]responseRule {
+	routeResponseRules := make(map[Route]responseRule)
+
+	for route, responseOption := range routeResponseOptions {
+		routeResponse := &responseRule{}
+		for _, opt := range responseOption {
+			opt(routeResponse)
+		}
+		routeResponseRules[route] = *routeResponse
+	}
+	return routeResponseRules
 }
 
 func NewServer(httpMethod, path string, statusCode int, response responseBody) (*httptest.Server, *RequestRecorder) {
 	requestRecorder := NewRequestRecorder()
-	e := createEcho(requestRecorder, httpMethod, path, statusCode, response)
+	e := echo.New()
+	e.Add(httpMethod, path, spyHandler(requestRecorder, nil, response, statusCode))
 	return httptest.NewServer(e), requestRecorder
 }
 
-func createEcho(requestRecorder *RequestRecorder, httpMethod, path string, statusCode int, body responseBody) *echo.Echo {
-	e := echo.New()
+func spyHandler(requestRecorder *RequestRecorder, header http.Header, body responseBody, statusCode int) echo.HandlerFunc {
+	return func(ctx echo.Context) error {
+		contextToRequestRecorder(ctx, requestRecorder)
 
-	e.Add(httpMethod, path, func(ctx echo.Context) error {
-
-		if ctx.Request().Header.Get(echo.HeaderContentType) == echo.MIMEApplicationXML {
-			requestRecorder.bindXML(ctx.Request().Body)
-		} else if err := ctx.Bind(&requestRecorder.Body); err != nil {
-			data, err := ioutil.ReadAll(ctx.Request().Body)
-			if err != nil {
-				return err
+		for key, values := range header {
+			for _, value := range values {
+				ctx.Response().Header().Add(key, value)
 			}
-			requestRecorder.setData(data)
 		}
-
-		requestRecorder.setParams(ctx.ParamNames(), ctx.ParamValues())
-		requestRecorder.setQueryParams(ctx.QueryParams())
-		requestRecorder.setFormParams(ctx.Request().Form)
 
 		if body == nil {
 			return ctx.NoContent(statusCode)
@@ -177,7 +140,23 @@ func createEcho(requestRecorder *RequestRecorder, httpMethod, path string, statu
 		}
 
 		return nil
-	})
+	}
+}
 
-	return e
+func contextToRequestRecorder(ctx echo.Context, requestRecorder *RequestRecorder) error {
+	if ctx.Request().Header.Get(echo.HeaderContentType) == echo.MIMEApplicationXML {
+		requestRecorder.bindXML(ctx.Request().Body)
+	} else if err := ctx.Bind(&requestRecorder.Body); err != nil {
+		data, err := ioutil.ReadAll(ctx.Request().Body)
+		if err != nil {
+			return err
+		}
+		requestRecorder.setData(data)
+	}
+
+	requestRecorder.setParams(ctx.ParamNames(), ctx.ParamValues())
+	requestRecorder.setQueryParams(ctx.QueryParams())
+	requestRecorder.setFormParams(ctx.Request().Form)
+
+	return nil
 }

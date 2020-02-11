@@ -116,52 +116,56 @@ func TestServerWithByteResponse(t *testing.T) {
 	assert.Equal(t, expectedByteResponse, actualResponseBody)
 }
 
-// func TestServerWithHeader(t *testing.T) {
-// 	expectedHeaders := http.Header{
-// 		"Content-Type": []string{"application/json"},
-// 	}
-
-// 	server, _ := NewServer(http.MethodGet, "/hi", http.StatusOK, NoResponse(), expectedHeaders)
-
-// 	request := newJSONRequest(http.MethodGet, server.URL+"/hi", http.NoBody)
-// 	res, _ := http.DefaultClient.Do(request)
-
-// 	assert.Equal(t, expectedHeaders, res.Header)
-// }
-
-func TestServeWithResponseJSON(t *testing.T) {
+func TestMultiRouteServer(t *testing.T) {
 	type UserResponse struct {
 		ID   int    `json:"id"`
 		Name string `json:"name"`
 	}
 
-	expectedStatusCode := http.StatusOK
-	expectedHeader := http.Header{"Content-Type": []string{"application/json", "anan"}}
-	expectedUserResponse := UserResponse{ID: 123, Name: "kalt"}
+	type BookResponse struct {
+		ISBN string `xml:"isbn"`
+		Name string `xml:"name"`
+	}
 
-	server, _ := NewServe(map[route][]RouteResponseOption{
+	expectedUserRouteStatusCode := http.StatusOK
+	expectedUserRouteHeader := http.Header{"Content-Type": []string{"application/json"}}
+	expectedUserRouteResponse := UserResponse{ID: 123, Name: "kalt"}
+
+	expectedBookRouteStatusCode := http.StatusTeapot
+	expectedBookRouteHeader := http.Header{"Content-Type": []string{"application/xml"}}
+	expectedBookRouteResponse := BookResponse{ISBN: "9780262510875", Name: "SICPStructure and Interpretation of Computer Programs"}
+
+	server, _ := NewMultiRouteServer(map[Route][]ResponseRuleOption{
 		{http.MethodGet, "/user"}: {
-			StatusCode(expectedStatusCode),
-			JSONBody(expectedUserResponse),
-			Header(expectedHeader),
+			StatusCode(expectedUserRouteStatusCode),
+			JSONBody(expectedUserRouteResponse),
+			Header(expectedUserRouteHeader),
+		},
+		{http.MethodGet, "/book"}: {
+			StatusCode(expectedBookRouteStatusCode),
+			Header(expectedBookRouteHeader),
+			XMLBody(expectedBookRouteResponse),
 		},
 	})
 
-	request := newJSONRequest(http.MethodGet, server.URL+"/user", http.NoBody)
-	res, _ := http.DefaultClient.Do(request)
+	userRequest := newJSONRequest(http.MethodGet, server.URL+"/user", http.NoBody)
+	userResponse, _ := http.DefaultClient.Do(userRequest)
+	assert.Equal(t, http.StatusOK, userResponse.StatusCode)
 
-	assert.Equal(t, http.StatusOK, res.StatusCode)
+	userBody, _ := ioutil.ReadAll(userResponse.Body)
+	actualUserRouteResponse := UserResponse{}
+	json.Unmarshal(userBody, &actualUserRouteResponse)
+	assert.Equal(t, expectedUserRouteResponse, actualUserRouteResponse)
 
-	body, _ := ioutil.ReadAll(res.Body)
+	bookRequest := newXMLRequest(http.MethodGet, server.URL+"/book", http.NoBody)
+	bookResponse, _ := http.DefaultClient.Do(bookRequest)
+	assert.Equal(t, http.StatusTeapot, bookResponse.StatusCode)
 
-	actualResponse := UserResponse{}
-	json.Unmarshal(body, &actualResponse)
-
-	assert.Equal(t, expectedUserResponse, actualResponse)
-
-	for key, value := range expectedHeader {
-		actualValue, contains := res.Header[key]
+	for key, value := range expectedUserRouteHeader {
+		actualValue, contains := userResponse.Header[key]
 		assert.True(t, contains)
 		assert.Equal(t, value, actualValue)
 	}
+
+	// requestRecorders[Route{http.MethodGet, "/book"}]
 }
