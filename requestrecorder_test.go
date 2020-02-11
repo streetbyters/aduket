@@ -13,7 +13,7 @@ func TestAssertJSONBodyEqual(t *testing.T) {
 		Name string `json:"name"`
 	}
 
-	server, requestRecorder := NewServer(http.MethodPost, "/user", http.StatusCreated, NoResponse())
+	server, requestRecorder := NewServer(http.MethodPost, "/user", StatusCode(http.StatusCreated))
 	expectedPayload := UserRequest{Name: "noname"}
 	request := newJSONRequest(http.MethodPost, server.URL+"/user", expectedPayload)
 
@@ -32,7 +32,7 @@ func TestAssertJSONBodyEqual(t *testing.T) {
 
 func TestAssertStringBodyEqual(t *testing.T) {
 
-	server, requestRecorder := NewServer(http.MethodPost, "/user", http.StatusCreated, NoResponse())
+	server, requestRecorder := NewServer(http.MethodPost, "/user", StatusCode(http.StatusCreated))
 
 	expectedPayload := "Hello"
 	request := newStringRequest(http.MethodPost, server.URL+"/user", expectedPayload)
@@ -54,7 +54,7 @@ func TestAssertXMLBodyEqual(t *testing.T) {
 		Name string `xml:"name"`
 	}
 
-	server, requestRecorder := NewServer(http.MethodPost, "/user", http.StatusCreated, NoResponse())
+	server, requestRecorder := NewServer(http.MethodPost, "/user", StatusCode(http.StatusCreated))
 
 	expectedPayload := UserRequest{Name: "noname"}
 	request := newXMLRequest(http.MethodPost, server.URL+"/user", expectedPayload)
@@ -72,7 +72,7 @@ func TestAssertXMLBodyEqual(t *testing.T) {
 }
 
 func TestAssertParamEqual(t *testing.T) {
-	server, requestRecorder := NewServer(http.MethodGet, "/user/:id", http.StatusOK, NoResponse())
+	server, requestRecorder := NewServer(http.MethodGet, "/user/:id", StatusCode(http.StatusOK))
 
 	request := newJSONRequest(http.MethodGet, server.URL+"/user/123", http.NoBody)
 	http.DefaultClient.Do(request)
@@ -87,7 +87,7 @@ func TestAssertParamEqual(t *testing.T) {
 }
 
 func TestAssertQueryParamEqual(t *testing.T) {
-	server, requestRecorder := NewServer(http.MethodGet, "/user", http.StatusOK, NoResponse())
+	server, requestRecorder := NewServer(http.MethodGet, "/user", StatusCode(http.StatusOK))
 
 	request := newJSONRequest(http.MethodGet, server.URL+"/user?name=Joe", http.NoBody)
 	http.DefaultClient.Do(request)
@@ -102,7 +102,7 @@ func TestAssertQueryParamEqual(t *testing.T) {
 }
 
 func TestAssertFormParamEqual(t *testing.T) {
-	server, requestRecorder := NewServer(http.MethodPost, "/user", http.StatusCreated, NoResponse())
+	server, requestRecorder := NewServer(http.MethodPost, "/user", StatusCode(http.StatusCreated))
 
 	form := url.Values{}
 	form.Add("name", "Joe")

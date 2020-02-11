@@ -49,7 +49,7 @@ func TestServerWithResponseJSON(t *testing.T) {
 
 	expectedUserResponse := UserResponse{ID: 123, Name: "kalt"}
 
-	server, _ := NewServer(http.MethodGet, "/user/:id", http.StatusOK, JSONResponse(expectedUserResponse))
+	server, _ := NewServer(http.MethodGet, "/user/:id", StatusCode(http.StatusOK), JSONBody(expectedUserResponse))
 
 	request := newJSONRequest(http.MethodGet, server.URL+"/user/123", http.NoBody)
 	res, _ := http.DefaultClient.Do(request)
@@ -71,7 +71,7 @@ func TestServerWithXMLResponse(t *testing.T) {
 
 	expectedUserResponse := UserResponse{Name: "john"}
 
-	server, _ := NewServer(http.MethodGet, "/user/123", http.StatusOK, XMLResponse(expectedUserResponse))
+	server, _ := NewServer(http.MethodGet, "/user/123", StatusCode(http.StatusOK), XMLBody(expectedUserResponse))
 
 	request := newXMLRequest(http.MethodGet, server.URL+"/user/123", http.NoBody)
 	res, _ := http.DefaultClient.Do(request)
@@ -89,7 +89,7 @@ func TestServerWithXMLResponse(t *testing.T) {
 func TestServerWithStringResponse(t *testing.T) {
 	expectedStringResponse := "Hello"
 
-	server, _ := NewServer(http.MethodGet, "/hi", http.StatusOK, StringResponse(expectedStringResponse))
+	server, _ := NewServer(http.MethodGet, "/hi", StatusCode(http.StatusOK), StringBody(expectedStringResponse))
 
 	request := newJSONRequest(http.MethodGet, server.URL+"/hi", http.NoBody)
 	res, _ := http.DefaultClient.Do(request)
@@ -104,7 +104,7 @@ func TestServerWithStringResponse(t *testing.T) {
 func TestServerWithByteResponse(t *testing.T) {
 	expectedByteResponse := []byte{'S', 'T', 'R', 'E', 'E', 'T', ' ', 'B', 'Y', 'T', 'E', 'R', 'S'}
 
-	server, _ := NewServer(http.MethodGet, "/hi", http.StatusOK, ByteResponse(expectedByteResponse))
+	server, _ := NewServer(http.MethodGet, "/hi", StatusCode(http.StatusOK), ByteBody(expectedByteResponse))
 
 	request := newJSONRequest(http.MethodGet, server.URL+"/hi", http.NoBody)
 	res, _ := http.DefaultClient.Do(request)

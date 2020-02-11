@@ -17,8 +17,6 @@
 package aduket
 
 import (
-	"encoding/json"
-	"encoding/xml"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -27,28 +25,6 @@ import (
 )
 
 type responseBody []byte
-
-func JSONResponse(j interface{}) responseBody {
-	jsonBytes, _ := json.Marshal(j)
-	return jsonBytes
-}
-
-func XMLResponse(x interface{}) responseBody {
-	xmlBytes, _ := xml.Marshal(x)
-	return xmlBytes
-}
-
-func StringResponse(s string) responseBody {
-	return []byte(s)
-}
-
-func ByteResponse(b []byte) responseBody {
-	return b
-}
-
-func NoResponse() responseBody {
-	return nil
-}
 
 type Route struct {
 	httpMethod string
@@ -59,32 +35,6 @@ type responseRule struct {
 	statusCode int
 	header     http.Header
 	body       responseBody
-}
-
-type ResponseRuleOption func(*responseRule)
-
-func StatusCode(statusCode int) ResponseRuleOption {
-	return func(r *responseRule) {
-		r.statusCode = statusCode
-	}
-}
-
-func JSONBody(body interface{}) ResponseRuleOption {
-	return func(r *responseRule) {
-		r.body = JSONResponse(body)
-	}
-}
-
-func XMLBody(body interface{}) ResponseRuleOption {
-	return func(r *responseRule) {
-		r.body = XMLResponse(body)
-	}
-}
-
-func Header(header http.Header) ResponseRuleOption {
-	return func(r *responseRule) {
-		r.header = header
-	}
 }
 
 func NewMultiRouteServer(routeResponseOptions map[Route][]ResponseRuleOption) (*httptest.Server, *RequestRecorder) {
@@ -99,24 +49,33 @@ func NewMultiRouteServer(routeResponseOptions map[Route][]ResponseRuleOption) (*
 	return httptest.NewServer(e), requestRecorder
 }
 
+func NewServer(httpMethod, path string, responseRuleOptions ...ResponseRuleOption) (*httptest.Server, *RequestRecorder) {
+	requestRecorder := NewRequestRecorder()
+	e := echo.New()
+
+	responseRule := createResponseRule(responseRuleOptions)
+
+	e.Add(httpMethod, path, spyHandler(requestRecorder, responseRule.header, responseRule.body, responseRule.statusCode))
+	return httptest.NewServer(e), requestRecorder
+}
+
 func createRouteResponseRules(routeResponseOptions map[Route][]ResponseRuleOption) map[Route]responseRule {
 	routeResponseRules := make(map[Route]responseRule)
-
 	for route, responseOption := range routeResponseOptions {
-		routeResponse := &responseRule{}
-		for _, opt := range responseOption {
-			opt(routeResponse)
-		}
-		routeResponseRules[route] = *routeResponse
+		rule := createResponseRule(responseOption)
+		routeResponseRules[route] = rule
 	}
+
 	return routeResponseRules
 }
 
-func NewServer(httpMethod, path string, statusCode int, response responseBody) (*httptest.Server, *RequestRecorder) {
-	requestRecorder := NewRequestRecorder()
-	e := echo.New()
-	e.Add(httpMethod, path, spyHandler(requestRecorder, nil, response, statusCode))
-	return httptest.NewServer(e), requestRecorder
+func createResponseRule(responseRuleOptions []ResponseRuleOption) responseRule {
+	responseRule := &responseRule{}
+	for _, responseRuleOption := range responseRuleOptions {
+		responseRuleOption(responseRule)
+	}
+
+	return *responseRule
 }
 
 func spyHandler(requestRecorder *RequestRecorder, header http.Header, body responseBody, statusCode int) echo.HandlerFunc {
