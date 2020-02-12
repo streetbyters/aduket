@@ -20,91 +20,78 @@ type Book struct {
 	Name string `xml:"name"`
 }
 
-//91.2
+type ExpectedResponse struct {
+	statusCode int
+	header     http.Header
+	body       []byte
+}
+
 func TestServer(t *testing.T) {
 	serverTests := []struct {
-		method              string
-		route               string
+		route               Route
 		responseRuleOptions []ResponseRuleOption
-		request             *http.Request
-		expectedStatusCode  int
-		expectedHeader      http.Header
-		expectedBody        []byte
+		expectedResponse    ExpectedResponse
 	}{
 		{
-			method: http.MethodGet,
-			route:  "/user",
+			route: Route{httpMethod: http.MethodGet, path: "/user"},
 			responseRuleOptions: []ResponseRuleOption{
 				StatusCode(http.StatusOK),
 				JSONBody(User{ID: 123, Name: "kalt"}),
 				Header(http.Header{"Content-Type": []string{"application/json"}}),
 			},
-			expectedStatusCode: http.StatusOK,
-			expectedHeader:     http.Header{"Content-Type": []string{"application/json"}},
-			expectedBody:       jsonMarshal(User{ID: 123, Name: "kalt"}),
+			expectedResponse: ExpectedResponse{
+				statusCode: http.StatusOK,
+				header:     http.Header{"Content-Type": []string{"application/json"}},
+				body:       jsonMarshal(User{ID: 123, Name: "kalt"}),
+			},
 		},
 		{
-			method: http.MethodPost,
-			route:  "/user",
+			route: Route{httpMethod: http.MethodPost, path: "/user"},
 			responseRuleOptions: []ResponseRuleOption{
 				StatusCode(http.StatusCreated),
 				XMLBody(Book{ISBN: "223-123", Name: "n0 n4m3"}),
 				Header(http.Header{"Content-Type": []string{"application/xml"}}),
 			},
-			expectedStatusCode: http.StatusCreated,
-			expectedHeader:     http.Header{"Content-Type": []string{"application/xml"}},
-			expectedBody:       xmlMarshal(Book{ISBN: "223-123", Name: "n0 n4m3"}),
+			expectedResponse: ExpectedResponse{
+				statusCode: http.StatusCreated,
+				header:     http.Header{"Content-Type": []string{"application/xml"}},
+				body:       xmlMarshal(Book{ISBN: "223-123", Name: "n0 n4m3"}),
+			},
 		},
 		{
-			method: http.MethodGet,
-			route:  "/hi",
+			route: Route{httpMethod: http.MethodGet, path: "/hi"},
 			responseRuleOptions: []ResponseRuleOption{
 				StatusCode(http.StatusOK),
 				StringBody("Hello"),
 			},
-			expectedStatusCode: http.StatusOK,
-			expectedHeader:     http.Header{},
-			expectedBody:       []byte("Hello"),
+			expectedResponse: ExpectedResponse{
+				statusCode: http.StatusOK,
+				header:     http.Header{},
+				body:       []byte("Hello"),
+			},
 		},
 		{
-			method: http.MethodGet,
-			route:  "/community/best",
+			route: Route{httpMethod: http.MethodGet, path: "/community/best"},
 			responseRuleOptions: []ResponseRuleOption{
 				StatusCode(http.StatusTeapot),
 				ByteBody([]byte{'S', 'T', 'R', 'E', 'E', 'T', ' ', 'B', 'Y', 'T', 'E', 'R', 'S'}),
 			},
-			expectedStatusCode: http.StatusTeapot,
-			expectedHeader:     http.Header{},
-			expectedBody:       []byte{'S', 'T', 'R', 'E', 'E', 'T', ' ', 'B', 'Y', 'T', 'E', 'R', 'S'},
+			expectedResponse: ExpectedResponse{
+				statusCode: http.StatusTeapot,
+				header:     http.Header{},
+				body:       []byte{'S', 'T', 'R', 'E', 'E', 'T', ' ', 'B', 'Y', 'T', 'E', 'R', 'S'},
+			},
 		},
 	}
 
 	for _, test := range serverTests {
-		server, _ := NewServer(test.method, test.route, test.responseRuleOptions...)
+		server, _ := NewServer(test.route.httpMethod, test.route.path, test.responseRuleOptions...)
 		defer server.Close()
-
-		request, err := http.NewRequest(test.method, server.URL+test.route, http.NoBody)
-		assert.Nil(t, err)
-
-		response, err := http.DefaultClient.Do(request)
-		assert.Nil(t, err)
-
-		assert.Equal(t, test.expectedStatusCode, response.StatusCode)
-
-		assertHeaderContains(t, test.expectedHeader, response.Header)
-
-		actualBody, err := ioutil.ReadAll(response.Body)
-		assert.Nil(t, err)
-		assert.Equal(t, test.expectedBody, actualBody)
+		testRoute(t, server.URL, test.route, test.expectedResponse)
 	}
 }
 
 func TestMultiRouteServer(t *testing.T) {
-	type ExpectedResponse struct {
-		statusCode int
-		header     http.Header
-		body       []byte
-	}
 
 	multiRouteServerTests := []struct {
 		routeResponseRuleOptions map[Route][]ResponseRuleOption
@@ -144,22 +131,25 @@ func TestMultiRouteServer(t *testing.T) {
 
 		for route := range test.routeResponseRuleOptions {
 			expectedResponse := test.expectedRouteResponses[route]
-
-			request, err := http.NewRequest(route.httpMethod, server.URL+route.path, http.NoBody)
-			assert.Nil(t, err)
-
-			response, err := http.DefaultClient.Do(request)
-			assert.Nil(t, err)
-
-			assert.Equal(t, expectedResponse.statusCode, response.StatusCode)
-
-			actualBody, err := ioutil.ReadAll(response.Body)
-			assert.Nil(t, err)
-			assert.Equal(t, expectedResponse.body, actualBody)
-
-			assertHeaderContains(t, expectedResponse.header, response.Header)
+			testRoute(t, server.URL, route, expectedResponse)
 		}
 	}
+}
+
+func testRoute(t *testing.T, serverURL string, route Route, expectedResponse ExpectedResponse) {
+	request, err := http.NewRequest(route.httpMethod, serverURL+route.path, http.NoBody)
+	assert.Nil(t, err)
+
+	response, err := http.DefaultClient.Do(request)
+	assert.Nil(t, err)
+
+	assert.Equal(t, expectedResponse.statusCode, response.StatusCode)
+
+	actualBody, err := ioutil.ReadAll(response.Body)
+	assert.Nil(t, err)
+	assert.Equal(t, expectedResponse.body, actualBody)
+
+	assertHeaderContains(t, expectedResponse.header, response.Header)
 }
 
 func jsonMarshal(j interface{}) []byte {
