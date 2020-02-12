@@ -1,8 +1,12 @@
 package aduket
 
 import (
+	"bytes"
+	"encoding/json"
+	"encoding/xml"
 	"net/http"
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -136,4 +140,32 @@ func TestAssertHeaderEqual(t *testing.T) {
 
 	assert.False(t, requestRecorder.AssertHeaderEqual(tester, http.Header{"Test": []string{"noo"}}))
 	assert.False(t, requestRecorder.AssertHeaderEqual(tester, http.Header{"West": []string{"123"}}))
+}
+
+func newStringRequest(method, url, body string) *http.Request {
+	request, _ := http.NewRequest(method, url, strings.NewReader(body))
+	return request
+}
+
+func newJSONRequest(method, url string, body interface{}) *http.Request {
+	requestBody, _ := json.Marshal(body)
+	request, _ := http.NewRequest(method, url, bytes.NewReader(requestBody))
+	request.Header.Set("Content-Type", "application/json")
+
+	return request
+}
+
+func newXMLRequest(method, url string, body interface{}) *http.Request {
+	requestBody, _ := xml.Marshal(body)
+	request, _ := http.NewRequest(method, url, bytes.NewReader(requestBody))
+	request.Header.Set("Content-Type", "application/xml")
+
+	return request
+}
+
+func newFormRequest(method, url string, form url.Values) *http.Request {
+	request, _ := http.NewRequest(method, url, strings.NewReader(form.Encode()))
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	return request
 }

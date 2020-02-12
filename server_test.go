@@ -1,68 +1,14 @@
 package aduket
 
 import (
-	"bytes"
 	"encoding/json"
 	"encoding/xml"
 	"io/ioutil"
 	"net/http"
-	"net/url"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
-
-func newStringRequest(method, url, body string) *http.Request {
-	request, _ := http.NewRequest(method, url, strings.NewReader(body))
-	return request
-}
-
-func newJSONRequest(method, url string, body interface{}) *http.Request {
-	requestBody, _ := json.Marshal(body)
-	request, _ := http.NewRequest(method, url, bytes.NewReader(requestBody))
-	request.Header.Set("Content-Type", "application/json")
-
-	return request
-}
-
-func newXMLRequest(method, url string, body interface{}) *http.Request {
-	requestBody, _ := xml.Marshal(body)
-	request, _ := http.NewRequest(method, url, bytes.NewReader(requestBody))
-	request.Header.Set("Content-Type", "application/xml")
-
-	return request
-}
-
-func newFormRequest(method, url string, form url.Values) *http.Request {
-	request, _ := http.NewRequest(method, url, strings.NewReader(form.Encode()))
-	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-
-	return request
-}
-
-func jsonMarshal(j interface{}) []byte {
-	m, _ := json.Marshal(j)
-	return m
-}
-
-func xmlMarshal(x interface{}) []byte {
-	m, _ := xml.Marshal(x)
-	return m
-}
-
-func assertHeaderContains(t *testing.T, expectedHeader, actualHeader http.Header) bool {
-	for key, value := range expectedHeader {
-		actualValue, contains := actualHeader[key]
-		if !assert.True(t, contains) {
-			return false
-		}
-		if !assert.Equal(t, value, actualValue) {
-			return false
-		}
-	}
-	return true
-}
 
 type User struct {
 	ID   int    `json:"id"`
@@ -154,49 +100,87 @@ func TestServer(t *testing.T) {
 }
 
 func TestMultiRouteServer(t *testing.T) {
-
-	server, _ := NewMultiRouteServer(map[Route][]ResponseRuleOption{
-		{http.MethodGet, "/user"}: {
-			StatusCode(http.StatusOK),
-			JSONBody(User{ID: 123, Name: "kalt"}),
-			Header(http.Header{"Content-Type": []string{"application/json"}}),
-		},
-		{http.MethodGet, "/book"}: {
-			StatusCode(http.StatusTeapot),
-			Header(http.Header{"Content-Type": []string{"application/xml"}}),
-			XMLBody(Book{ISBN: "9780262510875", Name: "Structure and Interpretation of Computer Programs"}),
-		},
-	})
+	type ExpectedResponse struct {
+		statusCode int
+		header     http.Header
+		body       []byte
+	}
 
 	multiRouteServerTests := []struct {
-		request            *http.Request
-		expectedStatusCode int
-		expectedHeader     http.Header
-		expectedBody       interface{}
+		routeResponseRuleOptions map[Route][]ResponseRuleOption
+		expectedRouteResponses   map[Route]ExpectedResponse
 	}{
 		{
-			request:            newJSONRequest(http.MethodGet, server.URL+"/user", http.NoBody),
-			expectedStatusCode: http.StatusOK,
-			expectedHeader:     http.Header{"Content-Type": []string{"application/json"}},
-			expectedBody:       jsonMarshal(User{ID: 123, Name: "kalt"}),
-		},
-		{
-			request:            newXMLRequest(http.MethodGet, server.URL+"/book", http.NoBody),
-			expectedStatusCode: http.StatusTeapot,
-			expectedHeader:     http.Header{"Content-Type": []string{"application/xml"}},
-			expectedBody:       xmlMarshal(Book{ISBN: "9780262510875", Name: "Structure and Interpretation of Computer Programs"}),
+			routeResponseRuleOptions: map[Route][]ResponseRuleOption{
+				{http.MethodGet, "/user"}: {
+					StatusCode(http.StatusOK),
+					JSONBody(User{ID: 123, Name: "kalt"}),
+					Header(http.Header{"Content-Type": []string{"application/json"}}),
+				},
+				{http.MethodGet, "/book"}: {
+					StatusCode(http.StatusTeapot),
+					Header(http.Header{"Content-Type": []string{"application/xml"}}),
+					XMLBody(Book{ISBN: "9780262510875", Name: "Structure and Interpretation of Computer Programs"}),
+				},
+			},
+			expectedRouteResponses: map[Route]ExpectedResponse{
+				{http.MethodGet, "/user"}: {
+					statusCode: http.StatusOK,
+					header:     http.Header{"Content-Type": []string{"application/json"}},
+					body:       jsonMarshal(User{ID: 123, Name: "kalt"}),
+				},
+				{http.MethodGet, "/book"}: {
+					statusCode: http.StatusTeapot,
+					header:     http.Header{"Content-Type": []string{"application/xml"}},
+					body:       xmlMarshal(Book{ISBN: "9780262510875", Name: "Structure and Interpretation of Computer Programs"}),
+				},
+			},
 		},
 	}
 
 	for _, test := range multiRouteServerTests {
-		response, err := http.DefaultClient.Do(test.request)
-		assert.Nil(t, err)
-		assert.Equal(t, test.expectedStatusCode, response.StatusCode)
+		server, _ := NewMultiRouteServer(test.routeResponseRuleOptions)
+		defer server.Close()
 
-		actualBody, err := ioutil.ReadAll(response.Body)
-		assert.Nil(t, err)
-		assert.Equal(t, test.expectedBody, actualBody)
+		for route := range test.routeResponseRuleOptions {
+			expectedResponse := test.expectedRouteResponses[route]
 
-		assertHeaderContains(t, test.expectedHeader, response.Header)
+			request, err := http.NewRequest(route.httpMethod, server.URL+route.path, http.NoBody)
+			assert.Nil(t, err)
+
+			response, err := http.DefaultClient.Do(request)
+			assert.Nil(t, err)
+
+			assert.Equal(t, expectedResponse.statusCode, response.StatusCode)
+
+			actualBody, err := ioutil.ReadAll(response.Body)
+			assert.Nil(t, err)
+			assert.Equal(t, expectedResponse.body, actualBody)
+
+			assertHeaderContains(t, expectedResponse.header, response.Header)
+		}
 	}
+}
+
+func jsonMarshal(j interface{}) []byte {
+	m, _ := json.Marshal(j)
+	return m
+}
+
+func xmlMarshal(x interface{}) []byte {
+	m, _ := xml.Marshal(x)
+	return m
+}
+
+func assertHeaderContains(t *testing.T, expectedHeader, actualHeader http.Header) bool {
+	for key, value := range expectedHeader {
+		actualValue, contains := actualHeader[key]
+		if !assert.True(t, contains) {
+			return false
+		}
+		if !assert.Equal(t, value, actualValue) {
+			return false
+		}
+	}
+	return true
 }
