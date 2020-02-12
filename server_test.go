@@ -41,6 +41,16 @@ func newFormRequest(method, url string, form url.Values) *http.Request {
 	return request
 }
 
+func jsonMarshal(j interface{}) []byte {
+	m, _ := json.Marshal(j)
+	return m
+}
+
+func xmlMarshal(x interface{}) []byte {
+	m, _ := xml.Marshal(x)
+	return m
+}
+
 func TestServerWithResponseJSON(t *testing.T) {
 	type UserResponse struct {
 		ID   int    `json:"id"`
@@ -117,55 +127,63 @@ func TestServerWithByteResponse(t *testing.T) {
 }
 
 func TestMultiRouteServer(t *testing.T) {
-	type UserResponse struct {
+	type User struct {
 		ID   int    `json:"id"`
 		Name string `json:"name"`
 	}
 
-	type BookResponse struct {
+	type Book struct {
 		ISBN string `xml:"isbn"`
 		Name string `xml:"name"`
 	}
 
-	expectedUserRouteStatusCode := http.StatusOK
-	expectedUserRouteHeader := http.Header{"Content-Type": []string{"application/json"}}
-	expectedUserRouteResponse := UserResponse{ID: 123, Name: "kalt"}
-
-	expectedBookRouteStatusCode := http.StatusTeapot
-	expectedBookRouteHeader := http.Header{"Content-Type": []string{"application/xml"}}
-	expectedBookRouteResponse := BookResponse{ISBN: "9780262510875", Name: "SICPStructure and Interpretation of Computer Programs"}
-
 	server, _ := NewMultiRouteServer(map[Route][]ResponseRuleOption{
 		{http.MethodGet, "/user"}: {
-			StatusCode(expectedUserRouteStatusCode),
-			JSONBody(expectedUserRouteResponse),
-			Header(expectedUserRouteHeader),
+			StatusCode(http.StatusOK),
+			JSONBody(User{ID: 123, Name: "kalt"}),
+			Header(http.Header{"Content-Type": []string{"application/json"}}),
 		},
 		{http.MethodGet, "/book"}: {
-			StatusCode(expectedBookRouteStatusCode),
-			Header(expectedBookRouteHeader),
-			XMLBody(expectedBookRouteResponse),
+			StatusCode(http.StatusTeapot),
+			Header(http.Header{"Content-Type": []string{"application/xml"}}),
+			XMLBody(Book{ISBN: "9780262510875", Name: "Structure and Interpretation of Computer Programs"}),
 		},
 	})
 
-	userRequest := newJSONRequest(http.MethodGet, server.URL+"/user", http.NoBody)
-	userResponse, _ := http.DefaultClient.Do(userRequest)
-	assert.Equal(t, http.StatusOK, userResponse.StatusCode)
-
-	userBody, _ := ioutil.ReadAll(userResponse.Body)
-	actualUserRouteResponse := UserResponse{}
-	json.Unmarshal(userBody, &actualUserRouteResponse)
-	assert.Equal(t, expectedUserRouteResponse, actualUserRouteResponse)
-
-	bookRequest := newXMLRequest(http.MethodGet, server.URL+"/book", http.NoBody)
-	bookResponse, _ := http.DefaultClient.Do(bookRequest)
-	assert.Equal(t, http.StatusTeapot, bookResponse.StatusCode)
-
-	for key, value := range expectedUserRouteHeader {
-		actualValue, contains := userResponse.Header[key]
-		assert.True(t, contains)
-		assert.Equal(t, value, actualValue)
+	multiRouteServerTests := []struct {
+		request            *http.Request
+		expectedStatusCode int
+		expectedHeader     http.Header
+		expectedBody       interface{}
+	}{
+		{
+			request:            newJSONRequest(http.MethodGet, server.URL+"/user", http.NoBody),
+			expectedStatusCode: http.StatusOK,
+			expectedHeader:     http.Header{"Content-Type": []string{"application/json"}},
+			expectedBody:       jsonMarshal(User{ID: 123, Name: "kalt"}),
+		},
+		{
+			request:            newXMLRequest(http.MethodGet, server.URL+"/book", http.NoBody),
+			expectedStatusCode: http.StatusTeapot,
+			expectedHeader:     http.Header{"Content-Type": []string{"application/xml"}},
+			expectedBody:       xmlMarshal(Book{ISBN: "9780262510875", Name: "Structure and Interpretation of Computer Programs"}),
+		},
 	}
 
+	for _, test := range multiRouteServerTests {
+		response, err := http.DefaultClient.Do(test.request)
+		assert.Nil(t, err)
+		assert.Equal(t, test.expectedStatusCode, response.StatusCode)
+
+		actualBody, err := ioutil.ReadAll(response.Body)
+		assert.Nil(t, err)
+		assert.Equal(t, test.expectedBody, actualBody)
+
+		for key, value := range test.expectedHeader {
+			actualValue, contains := response.Header[key]
+			assert.True(t, contains)
+			assert.Equal(t, value, actualValue)
+		}
+	}
 	// requestRecorders[Route{http.MethodGet, "/book"}]
 }
