@@ -51,91 +51,109 @@ func xmlMarshal(x interface{}) []byte {
 	return m
 }
 
-func TestServerWithResponseJSON(t *testing.T) {
-	type UserResponse struct {
-		ID   int    `json:"id"`
-		Name string `json:"name"`
+func assertHeaderContains(t *testing.T, expectedHeader, actualHeader http.Header) bool {
+	for key, value := range expectedHeader {
+		actualValue, contains := actualHeader[key]
+		if !assert.True(t, contains) {
+			return false
+		}
+		if !assert.Equal(t, value, actualValue) {
+			return false
+		}
+	}
+	return true
+}
+
+type User struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+}
+
+type Book struct {
+	ISBN string `xml:"isbn"`
+	Name string `xml:"name"`
+}
+
+//91.2
+func TestServer(t *testing.T) {
+	serverTests := []struct {
+		method              string
+		route               string
+		responseRuleOptions []ResponseRuleOption
+		request             *http.Request
+		expectedStatusCode  int
+		expectedHeader      http.Header
+		expectedBody        []byte
+	}{
+		{
+			method: http.MethodGet,
+			route:  "/user",
+			responseRuleOptions: []ResponseRuleOption{
+				StatusCode(http.StatusOK),
+				JSONBody(User{ID: 123, Name: "kalt"}),
+				Header(http.Header{"Content-Type": []string{"application/json"}}),
+			},
+			expectedStatusCode: http.StatusOK,
+			expectedHeader:     http.Header{"Content-Type": []string{"application/json"}},
+			expectedBody:       jsonMarshal(User{ID: 123, Name: "kalt"}),
+		},
+		{
+			method: http.MethodPost,
+			route:  "/user",
+			responseRuleOptions: []ResponseRuleOption{
+				StatusCode(http.StatusCreated),
+				XMLBody(Book{ISBN: "223-123", Name: "n0 n4m3"}),
+				Header(http.Header{"Content-Type": []string{"application/xml"}}),
+			},
+			expectedStatusCode: http.StatusCreated,
+			expectedHeader:     http.Header{"Content-Type": []string{"application/xml"}},
+			expectedBody:       xmlMarshal(Book{ISBN: "223-123", Name: "n0 n4m3"}),
+		},
+		{
+			method: http.MethodGet,
+			route:  "/hi",
+			responseRuleOptions: []ResponseRuleOption{
+				StatusCode(http.StatusOK),
+				StringBody("Hello"),
+			},
+			expectedStatusCode: http.StatusOK,
+			expectedHeader:     http.Header{},
+			expectedBody:       []byte("Hello"),
+		},
+		{
+			method: http.MethodGet,
+			route:  "/community/best",
+			responseRuleOptions: []ResponseRuleOption{
+				StatusCode(http.StatusTeapot),
+				ByteBody([]byte{'S', 'T', 'R', 'E', 'E', 'T', ' ', 'B', 'Y', 'T', 'E', 'R', 'S'}),
+			},
+			expectedStatusCode: http.StatusTeapot,
+			expectedHeader:     http.Header{},
+			expectedBody:       []byte{'S', 'T', 'R', 'E', 'E', 'T', ' ', 'B', 'Y', 'T', 'E', 'R', 'S'},
+		},
 	}
 
-	expectedUserResponse := UserResponse{ID: 123, Name: "kalt"}
+	for _, test := range serverTests {
+		server, _ := NewServer(test.method, test.route, test.responseRuleOptions...)
+		defer server.Close()
 
-	server, _ := NewServer(http.MethodGet, "/user/:id", StatusCode(http.StatusOK), JSONBody(expectedUserResponse))
+		request, err := http.NewRequest(test.method, server.URL+test.route, http.NoBody)
+		assert.Nil(t, err)
 
-	request := newJSONRequest(http.MethodGet, server.URL+"/user/123", http.NoBody)
-	res, _ := http.DefaultClient.Do(request)
+		response, err := http.DefaultClient.Do(request)
+		assert.Nil(t, err)
 
-	assert.Equal(t, http.StatusOK, res.StatusCode)
+		assert.Equal(t, test.expectedStatusCode, response.StatusCode)
 
-	body, _ := ioutil.ReadAll(res.Body)
+		assertHeaderContains(t, test.expectedHeader, response.Header)
 
-	actualResponse := UserResponse{}
-	json.Unmarshal(body, &actualResponse)
-
-	assert.Equal(t, expectedUserResponse, actualResponse)
-}
-
-func TestServerWithXMLResponse(t *testing.T) {
-	type UserResponse struct {
-		Name string `xml:"name"`
+		actualBody, err := ioutil.ReadAll(response.Body)
+		assert.Nil(t, err)
+		assert.Equal(t, test.expectedBody, actualBody)
 	}
-
-	expectedUserResponse := UserResponse{Name: "john"}
-
-	server, _ := NewServer(http.MethodGet, "/user/123", StatusCode(http.StatusOK), XMLBody(expectedUserResponse))
-
-	request := newXMLRequest(http.MethodGet, server.URL+"/user/123", http.NoBody)
-	res, _ := http.DefaultClient.Do(request)
-
-	assert.Equal(t, http.StatusOK, res.StatusCode)
-
-	responseBody, _ := ioutil.ReadAll(res.Body)
-
-	actualXMLResponse := UserResponse{}
-	xml.Unmarshal(responseBody, &actualXMLResponse)
-
-	assert.Equal(t, expectedUserResponse, actualXMLResponse)
-}
-
-func TestServerWithStringResponse(t *testing.T) {
-	expectedStringResponse := "Hello"
-
-	server, _ := NewServer(http.MethodGet, "/hi", StatusCode(http.StatusOK), StringBody(expectedStringResponse))
-
-	request := newJSONRequest(http.MethodGet, server.URL+"/hi", http.NoBody)
-	res, _ := http.DefaultClient.Do(request)
-
-	assert.Equal(t, http.StatusOK, res.StatusCode)
-
-	actualResponseBody, _ := ioutil.ReadAll(res.Body)
-
-	assert.Equal(t, expectedStringResponse, string(actualResponseBody))
-}
-
-func TestServerWithByteResponse(t *testing.T) {
-	expectedByteResponse := []byte{'S', 'T', 'R', 'E', 'E', 'T', ' ', 'B', 'Y', 'T', 'E', 'R', 'S'}
-
-	server, _ := NewServer(http.MethodGet, "/hi", StatusCode(http.StatusOK), ByteBody(expectedByteResponse))
-
-	request := newJSONRequest(http.MethodGet, server.URL+"/hi", http.NoBody)
-	res, _ := http.DefaultClient.Do(request)
-
-	assert.Equal(t, http.StatusOK, res.StatusCode)
-
-	actualResponseBody, _ := ioutil.ReadAll(res.Body)
-
-	assert.Equal(t, expectedByteResponse, actualResponseBody)
 }
 
 func TestMultiRouteServer(t *testing.T) {
-	type User struct {
-		ID   int    `json:"id"`
-		Name string `json:"name"`
-	}
-
-	type Book struct {
-		ISBN string `xml:"isbn"`
-		Name string `xml:"name"`
-	}
 
 	server, _ := NewMultiRouteServer(map[Route][]ResponseRuleOption{
 		{http.MethodGet, "/user"}: {
@@ -179,11 +197,6 @@ func TestMultiRouteServer(t *testing.T) {
 		assert.Nil(t, err)
 		assert.Equal(t, test.expectedBody, actualBody)
 
-		for key, value := range test.expectedHeader {
-			actualValue, contains := response.Header[key]
-			assert.True(t, contains)
-			assert.Equal(t, value, actualValue)
-		}
+		assertHeaderContains(t, test.expectedHeader, response.Header)
 	}
-	// requestRecorders[Route{http.MethodGet, "/book"}]
 }
