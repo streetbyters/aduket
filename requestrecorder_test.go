@@ -5,42 +5,47 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
 
+	"github.com/labstack/echo"
 	"github.com/stretchr/testify/assert"
 )
 
+var dummyRequest = httptest.NewRequest(http.MethodGet, "http://streetbyters.com", http.NoBody)
+
 func TestAssertJSONBodyEqual(t *testing.T) {
-	type UserRequest struct {
+	type User struct {
 		Name string `json:"name"`
 	}
 
-	server, requestRecorder := NewServer(http.MethodPost, "/user", StatusCode(http.StatusCreated))
-	expectedPayload := UserRequest{Name: "noname"}
-	request := newJSONRequest(http.MethodPost, server.URL+"/user", expectedPayload)
+	expectedPayload := User{Name: "noname"}
+	request := newJSONRequest(http.MethodPost, "", expectedPayload)
 
-	res, _ := http.DefaultClient.Do(request)
+	ctx := echo.New().NewContext(request, nil)
+
+	requestRecorder := NewRequestRecorder()
+	requestRecorder.saveContext(ctx)
 
 	tester := &testing.T{}
 
 	assert.True(t, requestRecorder.AssertJSONBodyEqual(tester, expectedPayload))
 	assert.False(t, tester.Failed())
 
-	assert.False(t, requestRecorder.AssertJSONBodyEqual(tester, UserRequest{Name: "lel"}))
+	assert.False(t, requestRecorder.AssertJSONBodyEqual(tester, User{Name: "lel"}))
 	assert.True(t, tester.Failed())
-
-	assert.Equal(t, http.StatusCreated, res.StatusCode)
 }
 
 func TestAssertStringBodyEqual(t *testing.T) {
-
-	server, requestRecorder := NewServer(http.MethodPost, "/user", StatusCode(http.StatusCreated))
-
 	expectedPayload := "Hello"
-	request := newStringRequest(http.MethodPost, server.URL+"/user", expectedPayload)
-	res, _ := http.DefaultClient.Do(request)
+	request := newStringRequest(http.MethodPost, "", expectedPayload)
+
+	ctx := echo.New().NewContext(request, nil)
+
+	requestRecorder := NewRequestRecorder()
+	requestRecorder.saveContext(ctx)
 
 	tester := &testing.T{}
 
@@ -49,37 +54,39 @@ func TestAssertStringBodyEqual(t *testing.T) {
 
 	assert.False(t, requestRecorder.AssertStringBodyEqual(tester, "olleH"))
 	assert.True(t, tester.Failed())
-
-	assert.Equal(t, http.StatusCreated, res.StatusCode)
 }
 
 func TestAssertXMLBodyEqual(t *testing.T) {
-	type UserRequest struct {
+	type Book struct {
 		Name string `xml:"name"`
 	}
 
-	server, requestRecorder := NewServer(http.MethodPost, "/user", StatusCode(http.StatusCreated))
+	expectedPayload := Book{Name: "noname"}
 
-	expectedPayload := UserRequest{Name: "noname"}
-	request := newXMLRequest(http.MethodPost, server.URL+"/user", expectedPayload)
-	res, _ := http.DefaultClient.Do(request)
+	request := newXMLRequest(http.MethodPost, "", expectedPayload)
+
+	ctx := echo.New().NewContext(request, nil)
+
+	requestRecorder := NewRequestRecorder()
+	requestRecorder.saveContext(ctx)
 
 	tester := &testing.T{}
 
 	assert.True(t, requestRecorder.AssertXMLBodyEqual(tester, expectedPayload))
 	assert.False(t, tester.Failed())
 
-	assert.False(t, requestRecorder.AssertXMLBodyEqual(tester, UserRequest{Name: "lel"}))
+	assert.False(t, requestRecorder.AssertXMLBodyEqual(tester, Book{Name: "lel"}))
 	assert.True(t, tester.Failed())
-
-	assert.Equal(t, http.StatusCreated, res.StatusCode)
 }
 
 func TestAssertParamEqual(t *testing.T) {
-	server, requestRecorder := NewServer(http.MethodGet, "/user/:id", StatusCode(http.StatusOK))
 
-	request := newJSONRequest(http.MethodGet, server.URL+"/user/123", http.NoBody)
-	http.DefaultClient.Do(request)
+	ctx := echo.New().NewContext(dummyRequest, nil)
+	ctx.SetParamNames("id")
+	ctx.SetParamValues("123")
+
+	requestRecorder := NewRequestRecorder()
+	requestRecorder.saveContext(ctx)
 
 	tester := &testing.T{}
 
@@ -91,10 +98,12 @@ func TestAssertParamEqual(t *testing.T) {
 }
 
 func TestAssertQueryParamEqual(t *testing.T) {
-	server, requestRecorder := NewServer(http.MethodGet, "/user", StatusCode(http.StatusOK))
 
-	request := newJSONRequest(http.MethodGet, server.URL+"/user?name=Joe", http.NoBody)
-	http.DefaultClient.Do(request)
+	ctx := echo.New().NewContext(dummyRequest, nil)
+	ctx.QueryParams().Add("name", "Joe")
+
+	requestRecorder := NewRequestRecorder()
+	requestRecorder.saveContext(ctx)
 
 	tester := &testing.T{}
 
@@ -106,13 +115,11 @@ func TestAssertQueryParamEqual(t *testing.T) {
 }
 
 func TestAssertFormParamEqual(t *testing.T) {
-	server, requestRecorder := NewServer(http.MethodPost, "/user", StatusCode(http.StatusCreated))
+	ctx := echo.New().NewContext(dummyRequest, nil)
+	ctx.Request().Form = url.Values{"name": []string{"Joe"}}
 
-	form := url.Values{}
-	form.Add("name", "Joe")
-	request := newFormRequest(http.MethodPost, server.URL+"/user", form)
-
-	http.DefaultClient.Do(request)
+	requestRecorder := NewRequestRecorder()
+	requestRecorder.saveContext(ctx)
 
 	tester := &testing.T{}
 
@@ -121,17 +128,11 @@ func TestAssertFormParamEqual(t *testing.T) {
 }
 
 func TestAssertHeaderEqual(t *testing.T) {
-	type UserRequest struct {
-		Name string `json:"name"`
-	}
+	ctx := echo.New().NewContext(dummyRequest, nil)
+	ctx.Request().Header = http.Header{"Test": []string{"123"}}
 
-	server, requestRecorder := NewServer(http.MethodPost, "/user", StatusCode(http.StatusCreated))
-	expectedPayload := UserRequest{Name: "noname"}
-	request := newJSONRequest(http.MethodPost, server.URL+"/user", expectedPayload)
-
-	request.Header.Add("Test", "123")
-
-	http.DefaultClient.Do(request)
+	requestRecorder := NewRequestRecorder()
+	requestRecorder.saveContext(ctx)
 
 	tester := &testing.T{}
 
@@ -159,13 +160,6 @@ func newXMLRequest(method, url string, body interface{}) *http.Request {
 	requestBody, _ := xml.Marshal(body)
 	request, _ := http.NewRequest(method, url, bytes.NewReader(requestBody))
 	request.Header.Set("Content-Type", "application/xml")
-
-	return request
-}
-
-func newFormRequest(method, url string, form url.Values) *http.Request {
-	request, _ := http.NewRequest(method, url, strings.NewReader(form.Encode()))
-	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 	return request
 }
