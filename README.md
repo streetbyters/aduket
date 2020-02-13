@@ -6,20 +6,22 @@
     <i>Straight-forward HTTP client testing, assertions included!</i>
 </p>
 
-Simple `httptest.Server` wrapper with a little request recorder spice on it. No special DSL, no complex API to learn. Just create a server and fire your request like an **Hadouken** then assert them.
-
+Simple `httptest.Server` wrapper with a little request recorder spice on it. No special DSL, no complex API to learn. Just create a server and fire your request like an **Hadouken** then assert it.
 
 ## TODO
- - [ ] Add example usages
- - [ ] Add docs
- - [x] Add response headers to NewServer
- - [x] Add request header assertions
- - [ ] Add multiple request assertion logic
- - [x] Add multiple route registration to server
+ - [ ] Add JSONString body
+ - [ ] Add support for accessing to each RequestRecorder of Route of MultiRouteServer
  - [ ] Extract Request().Body to requestRecorder.Body binding logic to CustomBinder
+ - [ ] Add badges to README.md
  - [ ] Add NewServerWithTimeout for testing API timeouts
  - [ ] http.RoundTripper interface can be implemented to mock arbitrary URLs
+ - [ ] Add multiple request assertion logic
+ - [ ] Add example usages
+ - [ ] Add docs
  - [ ] Add meaningful error messages to assertions
+ - [x] Add response headers to NewServer
+ - [x] Add request header assertions
+ - [x] Add multiple route registration to server
 
 ## LICENSE
 Copyright 2020 StreetByters Community

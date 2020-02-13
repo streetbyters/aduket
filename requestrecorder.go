@@ -26,6 +26,7 @@ import (
 	"testing"
 
 	"github.com/clbanning/mxj"
+	"github.com/labstack/echo"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -124,6 +125,26 @@ func (r RequestRecorder) AssertHeaderEqual(t *testing.T, expectedHeader http.Hea
 	}
 
 	return true
+}
+
+func (r *RequestRecorder) saveContext(ctx echo.Context) error {
+	if ctx.Request().Header.Get(echo.HeaderContentType) == echo.MIMEApplicationXML {
+		r.bindXML(ctx.Request().Body)
+	} else if err := ctx.Bind(&r.Body); err != nil {
+		data, err := ioutil.ReadAll(ctx.Request().Body)
+		if err != nil {
+			return err
+		}
+		r.setData(data)
+	}
+
+	r.setParams(ctx.ParamNames(), ctx.ParamValues())
+	r.setQueryParams(ctx.QueryParams())
+	r.setFormParams(ctx.Request().Form)
+	r.setHeader(ctx.Request().Header)
+
+	return nil
+
 }
 
 func (r *RequestRecorder) setQueryParams(queryParams url.Values) {

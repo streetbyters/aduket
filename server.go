@@ -17,7 +17,6 @@
 package aduket
 
 import (
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 
@@ -31,10 +30,16 @@ type Route struct {
 	path       string
 }
 
-type responseRule struct {
-	statusCode int
+type response struct {
 	header     http.Header
 	body       responseBody
+	statusCode int
+}
+
+type responseRule struct {
+	header     http.Header
+	body       responseBody
+	statusCode int
 }
 
 func NewMultiRouteServer(routeResponseOptions map[Route][]ResponseRuleOption) (*httptest.Server, *RequestRecorder) {
@@ -43,9 +48,8 @@ func NewMultiRouteServer(routeResponseOptions map[Route][]ResponseRuleOption) (*
 
 	routeResponseRules := createRouteResponseRules(routeResponseOptions)
 	for route, responseRule := range routeResponseRules {
-		e.Add(route.httpMethod, route.path, spyHandler(requestRecorder, responseRule.header, responseRule.body, responseRule.statusCode))
+		e.Add(route.httpMethod, route.path, spyHandler(requestRecorder, response{responseRule.header, responseRule.body, responseRule.statusCode}))
 	}
-
 	return httptest.NewServer(e), requestRecorder
 }
 
@@ -55,7 +59,7 @@ func NewServer(httpMethod, path string, responseRuleOptions ...ResponseRuleOptio
 
 	responseRule := createResponseRule(responseRuleOptions)
 
-	e.Add(httpMethod, path, spyHandler(requestRecorder, responseRule.header, responseRule.body, responseRule.statusCode))
+	e.Add(httpMethod, path, spyHandler(requestRecorder, response{responseRule.header, responseRule.body, responseRule.statusCode}))
 	return httptest.NewServer(e), requestRecorder
 }
 
@@ -78,45 +82,26 @@ func createResponseRule(responseRuleOptions []ResponseRuleOption) responseRule {
 	return *responseRule
 }
 
-func spyHandler(requestRecorder *RequestRecorder, header http.Header, body responseBody, statusCode int) echo.HandlerFunc {
+func spyHandler(requestRecorder *RequestRecorder, res response) echo.HandlerFunc {
 	return func(ctx echo.Context) error {
-		contextToRequestRecorder(ctx, requestRecorder)
+		requestRecorder.saveContext(ctx)
 
-		for key, values := range header {
+		for key, values := range res.header {
 			for _, value := range values {
 				ctx.Response().Header().Add(key, value)
 			}
 		}
 
-		if body == nil {
-			return ctx.NoContent(statusCode)
+		if res.body == nil {
+			return ctx.NoContent(res.statusCode)
 		}
 
-		ctx.Response().WriteHeader(statusCode)
-		_, err := ctx.Response().Write(body)
+		ctx.Response().WriteHeader(res.statusCode)
+		_, err := ctx.Response().Write(res.body)
 		if err != nil {
 			return err
 		}
 
 		return nil
 	}
-}
-
-func contextToRequestRecorder(ctx echo.Context, requestRecorder *RequestRecorder) error {
-	if ctx.Request().Header.Get(echo.HeaderContentType) == echo.MIMEApplicationXML {
-		requestRecorder.bindXML(ctx.Request().Body)
-	} else if err := ctx.Bind(&requestRecorder.Body); err != nil {
-		data, err := ioutil.ReadAll(ctx.Request().Body)
-		if err != nil {
-			return err
-		}
-		requestRecorder.setData(data)
-	}
-
-	requestRecorder.setParams(ctx.ParamNames(), ctx.ParamValues())
-	requestRecorder.setQueryParams(ctx.QueryParams())
-	requestRecorder.setFormParams(ctx.Request().Form)
-	requestRecorder.setHeader(ctx.Request().Header)
-
-	return nil
 }
