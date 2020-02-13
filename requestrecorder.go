@@ -41,36 +41,6 @@ type RequestRecorder struct {
 
 type Body map[string]interface{}
 
-func (b Body) IsJSONEqual(body interface{}) (bool, error) {
-	bodyJSON, err := json.Marshal(body)
-	if err != nil {
-		return false, err
-	}
-
-	expectedRecorderBody := Body{}
-	if err := json.Unmarshal(bodyJSON, &expectedRecorderBody); err != nil {
-		return false, err
-	}
-
-	return assert.ObjectsAreEqualValues(expectedRecorderBody, b), nil
-}
-
-func (b Body) IsXMLEqual(body interface{}) (bool, error) {
-	bodyXML, err := xml.Marshal(body)
-	if err != nil {
-		return false, err
-	}
-
-	mv, err := mxj.NewMapXml(bodyXML)
-	if err != nil {
-		return false, err
-	}
-
-	expectedRecorderBody := mv.Old()
-
-	return assert.ObjectsAreEqualValues(b, expectedRecorderBody), nil
-}
-
 func NewRequestRecorder() *RequestRecorder {
 	requestRecorder := &RequestRecorder{}
 	requestRecorder.Body = make(Body)
@@ -83,7 +53,7 @@ func (r RequestRecorder) AssertStringBodyEqual(t *testing.T, expectedBody string
 }
 
 func (r RequestRecorder) AssertJSONBodyEqual(t *testing.T, expectedBody interface{}) bool {
-	isEqual, err := r.Body.IsJSONEqual(expectedBody)
+	isEqual, err := isJSONEqual(expectedBody, r.Body)
 	if err != nil {
 		assert.Fail(t, err.Error())
 	}
@@ -92,7 +62,7 @@ func (r RequestRecorder) AssertJSONBodyEqual(t *testing.T, expectedBody interfac
 }
 
 func (r RequestRecorder) AssertXMLBodyEqual(t *testing.T, expectedXMLBody interface{}) bool {
-	isEqual, err := r.Body.IsXMLEqual(expectedXMLBody)
+	isEqual, err := isXMLEqual(expectedXMLBody, r.Body)
 	if err != nil {
 		assert.Fail(t, err.Error())
 	}
@@ -113,18 +83,50 @@ func (r RequestRecorder) AssertFormParamEqual(t *testing.T, formParamName string
 }
 
 func (r RequestRecorder) AssertHeaderEqual(t *testing.T, expectedHeader http.Header) bool {
+	return assert.True(t, isHeaderContains(expectedHeader, r.Header))
+}
+
+func isHeaderContains(expectedHeader, actualHeader http.Header) bool {
 	for key, value := range expectedHeader {
-		actualValue, contains := r.Header[key]
-		if !assert.True(t, contains) {
+		actualValue, contains := actualHeader[key]
+		if !contains {
 			return false
 		}
 
-		if !assert.Equal(t, value, actualValue) {
+		if !assert.ObjectsAreEqualValues(value, actualValue) {
 			return false
 		}
 	}
-
 	return true
+}
+
+func isJSONEqual(expectedBody interface{}, actualBody Body) (bool, error) {
+	bodyJSON, err := json.Marshal(expectedBody)
+	if err != nil {
+		return false, err
+	}
+
+	expectedRecorderBody := Body{}
+	if err := json.Unmarshal(bodyJSON, &expectedRecorderBody); err != nil {
+		return false, err
+	}
+	return assert.ObjectsAreEqualValues(expectedRecorderBody, actualBody), nil
+}
+
+func isXMLEqual(expectedBody interface{}, actualBody Body) (bool, error) {
+	bodyXML, err := xml.Marshal(expectedBody)
+	if err != nil {
+		return false, err
+	}
+
+	mv, err := mxj.NewMapXml(bodyXML)
+	if err != nil {
+		return false, err
+	}
+
+	expectedRecorderBody := mv.Old()
+
+	return assert.ObjectsAreEqualValues(expectedRecorderBody, actualBody), nil
 }
 
 func (r *RequestRecorder) saveContext(ctx echo.Context) error {

@@ -26,7 +26,7 @@ type ExpectedResponse struct {
 	body       []byte
 }
 
-func TestServer(t *testing.T) {
+func TestServerResponse(t *testing.T) {
 	serverTests := []struct {
 		route               Route
 		responseRuleOptions []ResponseRuleOption
@@ -87,12 +87,49 @@ func TestServer(t *testing.T) {
 	for _, test := range serverTests {
 		server, _ := NewServer(test.route.httpMethod, test.route.path, test.responseRuleOptions...)
 		defer server.Close()
-		testRoute(t, server.URL, test.route, test.expectedResponse)
+		testRouteResponse(t, server.URL, test.route, test.expectedResponse)
 	}
 }
 
-func TestMultiRouteServer(t *testing.T) {
+type bodyAssertFunc func(interface{}, Body) (bool, error)
 
+func TestServerRequestRecorderBody(t *testing.T) {
+	serverTests := []struct {
+		route          Route
+		request        func(string) *http.Request
+		bodyAssertFunc bodyAssertFunc
+		expectedBody   interface{}
+	}{
+		{
+			route: Route{http.MethodPost, "/user"},
+			request: func(url string) *http.Request {
+				return newJSONRequest(http.MethodPost, url+"/user", User{ID: 133, Name: "Ken"})
+			},
+			bodyAssertFunc: isJSONEqual,
+			expectedBody:   User{ID: 133, Name: "Ken"},
+		},
+		{
+			route: Route{http.MethodPost, "/book"},
+			request: func(url string) *http.Request {
+				return newXMLRequest(http.MethodPost, url+"/book", Book{ISBN: "123-321-123", Name: "SICP"})
+			},
+			bodyAssertFunc: isXMLEqual,
+			expectedBody:   Book{ISBN: "123-321-123", Name: "SICP"},
+		},
+	}
+
+	for _, test := range serverTests {
+		server, requestRecorder := NewServer(test.route.httpMethod, test.route.path)
+		defer server.Close()
+
+		_, err := http.DefaultClient.Do(test.request(server.URL))
+		assert.Nil(t, err)
+
+		testRouteRequestRecorderBody(t, test.expectedBody, requestRecorder, test.bodyAssertFunc)
+	}
+}
+
+func TestMultiRouteServerResponse(t *testing.T) {
 	multiRouteServerTests := []struct {
 		routeResponseRuleOptions map[Route][]ResponseRuleOption
 		expectedRouteResponses   map[Route]ExpectedResponse
@@ -131,12 +168,65 @@ func TestMultiRouteServer(t *testing.T) {
 
 		for route := range test.routeResponseRuleOptions {
 			expectedResponse := test.expectedRouteResponses[route]
-			testRoute(t, server.URL, route, expectedResponse)
+			testRouteResponse(t, server.URL, route, expectedResponse)
 		}
 	}
 }
 
-func testRoute(t *testing.T, serverURL string, route Route, expectedResponse ExpectedResponse) {
+func TestMultiRouteServerRequestRecorderBody(t *testing.T) {
+	tests := []struct {
+		routes                             []Route
+		requests                           func(string) []*http.Request
+		routeBodyAssertFunc                map[Route]bodyAssertFunc
+		expectedRouteRequestRecorderBodies map[Route]interface{}
+	}{
+		{
+			routes: []Route{
+				{http.MethodPost, "/user"},
+				{http.MethodPost, "/book"},
+			},
+			requests: func(url string) []*http.Request {
+				reqs := []*http.Request{
+					newJSONRequest(http.MethodPost, url+"/user", User{ID: 1222, Name: "nonono"}),
+					newXMLRequest(http.MethodPost, url+"/book", Book{ISBN: "123-321-123", Name: "SICP"}),
+				}
+				return reqs
+			},
+			routeBodyAssertFunc: map[Route]bodyAssertFunc{
+				{http.MethodPost, "/user"}: isJSONEqual,
+				{http.MethodPost, "/book"}: isXMLEqual,
+			},
+			expectedRouteRequestRecorderBodies: map[Route]interface{}{
+				{http.MethodPost, "/user"}: User{ID: 1222, Name: "nonono"},
+				{http.MethodPost, "/book"}: Book{ISBN: "123-321-123", Name: "SICP"},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		routeResponseRules := make(map[Route][]ResponseRuleOption)
+		for _, route := range test.routes {
+			routeResponseRules[route] = []ResponseRuleOption{}
+		}
+
+		server, requestRecorder := NewMultiRouteServer(routeResponseRules)
+		defer server.Close()
+
+		for _, request := range test.requests(server.URL) {
+			_, err := http.DefaultClient.Do(request)
+			assert.Nil(t, err)
+		}
+
+		for _, route := range test.routes {
+			bodyAssertFunc := test.routeBodyAssertFunc[route]
+			expectedBody := test.expectedRouteRequestRecorderBodies[route]
+
+			testRouteRequestRecorderBody(t, expectedBody, requestRecorder[route], bodyAssertFunc)
+		}
+	}
+}
+
+func testRouteResponse(t *testing.T, serverURL string, route Route, expectedResponse ExpectedResponse) {
 	request, err := http.NewRequest(route.httpMethod, serverURL+route.path, http.NoBody)
 	assert.Nil(t, err)
 
@@ -149,7 +239,13 @@ func testRoute(t *testing.T, serverURL string, route Route, expectedResponse Exp
 	assert.Nil(t, err)
 	assert.Equal(t, expectedResponse.body, actualBody)
 
-	assertHeaderContains(t, expectedResponse.header, response.Header)
+	assert.True(t, isHeaderContains(expectedResponse.header, response.Header))
+}
+
+func testRouteRequestRecorderBody(t *testing.T, expectedBody interface{}, requestRecorder *RequestRecorder, bodyAssertFunc bodyAssertFunc) {
+	isBodyEqual, err := bodyAssertFunc(expectedBody, requestRecorder.Body)
+	assert.Nil(t, err)
+	assert.True(t, isBodyEqual)
 }
 
 func jsonMarshal(j interface{}) []byte {
@@ -160,17 +256,4 @@ func jsonMarshal(j interface{}) []byte {
 func xmlMarshal(x interface{}) []byte {
 	m, _ := xml.Marshal(x)
 	return m
-}
-
-func assertHeaderContains(t *testing.T, expectedHeader, actualHeader http.Header) bool {
-	for key, value := range expectedHeader {
-		actualValue, contains := actualHeader[key]
-		if !assert.True(t, contains) {
-			return false
-		}
-		if !assert.Equal(t, value, actualValue) {
-			return false
-		}
-	}
-	return true
 }

@@ -9,8 +9,7 @@
 Simple `httptest.Server` wrapper with a little request recorder spice on it. No special DSL, no complex API to learn. Just create a server and fire your request like an **Hadouken** then assert it.
 
 ## TODO
- - [ ] Add JSONString body
- - [ ] Add support for accessing to each RequestRecorder of Route of MultiRouteServer
+ - [x] Add support for accessing to each RequestRecorder of Route of MultiRouteServer
  - [ ] Extract Request().Body to requestRecorder.Body binding logic to CustomBinder
  - [ ] Add badges to README.md
  - [ ] Add NewServerWithTimeout for testing API timeouts

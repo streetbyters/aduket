@@ -42,13 +42,16 @@ type responseRule struct {
 	statusCode int
 }
 
-func NewMultiRouteServer(routeResponseOptions map[Route][]ResponseRuleOption) (*httptest.Server, *RequestRecorder) {
-	requestRecorder := NewRequestRecorder()
+func NewMultiRouteServer(routeResponseOptions map[Route][]ResponseRuleOption) (*httptest.Server, map[Route]*RequestRecorder) {
+	requestRecorder := make(map[Route]*RequestRecorder)
+
 	e := echo.New()
 
 	routeResponseRules := createRouteResponseRules(routeResponseOptions)
 	for route, responseRule := range routeResponseRules {
-		e.Add(route.httpMethod, route.path, spyHandler(requestRecorder, response{responseRule.header, responseRule.body, responseRule.statusCode}))
+		routeRequestRecorder := NewRequestRecorder()
+		requestRecorder[route] = routeRequestRecorder
+		e.Add(route.httpMethod, route.path, spyHandler(routeRequestRecorder, response{responseRule.header, responseRule.body, responseRule.statusCode}))
 	}
 	return httptest.NewServer(e), requestRecorder
 }
@@ -74,7 +77,9 @@ func createRouteResponseRules(routeResponseOptions map[Route][]ResponseRuleOptio
 }
 
 func createResponseRule(responseRuleOptions []ResponseRuleOption) responseRule {
-	responseRule := &responseRule{}
+	responseRule := &responseRule{
+		statusCode: http.StatusOK,
+	}
 	for _, responseRuleOption := range responseRuleOptions {
 		responseRuleOption(responseRule)
 	}
