@@ -30,12 +30,6 @@ type Route struct {
 	path       string
 }
 
-type response struct {
-	header     http.Header
-	body       responseBody
-	statusCode int
-}
-
 type responseRule struct {
 	header     http.Header
 	body       responseBody
@@ -44,26 +38,32 @@ type responseRule struct {
 
 func NewMultiRouteServer(routeResponseOptions map[Route][]ResponseRuleOption) (*httptest.Server, map[Route]*RequestRecorder) {
 	requestRecorder := make(map[Route]*RequestRecorder)
-
-	e := echo.New()
+	e := createEcho()
 
 	routeResponseRules := createRouteResponseRules(routeResponseOptions)
 	for route, responseRule := range routeResponseRules {
 		routeRequestRecorder := NewRequestRecorder()
 		requestRecorder[route] = routeRequestRecorder
-		e.Add(route.httpMethod, route.path, spyHandler(routeRequestRecorder, response{responseRule.header, responseRule.body, responseRule.statusCode}))
+		e.Add(route.httpMethod, route.path, spyHandler(routeRequestRecorder, responseRule))
 	}
+
 	return httptest.NewServer(e), requestRecorder
 }
 
 func NewServer(httpMethod, path string, responseRuleOptions ...ResponseRuleOption) (*httptest.Server, *RequestRecorder) {
 	requestRecorder := NewRequestRecorder()
-	e := echo.New()
 
+	e := createEcho()
 	responseRule := createResponseRule(responseRuleOptions)
 
-	e.Add(httpMethod, path, spyHandler(requestRecorder, response{responseRule.header, responseRule.body, responseRule.statusCode}))
+	e.Add(httpMethod, path, spyHandler(requestRecorder, responseRule))
 	return httptest.NewServer(e), requestRecorder
+}
+
+func createEcho() *echo.Echo {
+	e := echo.New()
+	e.Binder = &RequestRecorderBinder{}
+	return e
 }
 
 func createRouteResponseRules(routeResponseOptions map[Route][]ResponseRuleOption) map[Route]responseRule {
@@ -77,9 +77,8 @@ func createRouteResponseRules(routeResponseOptions map[Route][]ResponseRuleOptio
 }
 
 func createResponseRule(responseRuleOptions []ResponseRuleOption) responseRule {
-	responseRule := &responseRule{
-		statusCode: http.StatusOK,
-	}
+	responseRule := &responseRule{statusCode: http.StatusOK}
+
 	for _, responseRuleOption := range responseRuleOptions {
 		responseRuleOption(responseRule)
 	}
@@ -87,9 +86,18 @@ func createResponseRule(responseRuleOptions []ResponseRuleOption) responseRule {
 	return *responseRule
 }
 
-func spyHandler(requestRecorder *RequestRecorder, res response) echo.HandlerFunc {
+type RequestRecorderBinder struct{}
+
+func (r *RequestRecorderBinder) Bind(requestRecorder interface{}, ctx echo.Context) error {
+	recorder := requestRecorder.(*RequestRecorder)
+	return recorder.saveContext(ctx)
+}
+
+func spyHandler(requestRecorder *RequestRecorder, res responseRule) echo.HandlerFunc {
 	return func(ctx echo.Context) error {
-		requestRecorder.saveContext(ctx)
+		if err := ctx.Bind(requestRecorder); err != nil {
+			return err
+		}
 
 		for key, values := range res.header {
 			for _, value := range values {

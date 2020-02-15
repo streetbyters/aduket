@@ -132,11 +132,17 @@ func isXMLEqual(expectedBody interface{}, actualBody Body) (bool, error) {
 func (r *RequestRecorder) saveContext(ctx echo.Context) error {
 	if ctx.Request().Header.Get(echo.HeaderContentType) == echo.MIMEApplicationXML {
 		r.bindXML(ctx.Request().Body)
-	} else if err := ctx.Bind(&r.Body); err != nil {
+		return nil
+	}
+
+	defaultBinder := new(echo.DefaultBinder)
+
+	if err := defaultBinder.Bind(&r.Body, ctx); err != nil {
 		data, err := ioutil.ReadAll(ctx.Request().Body)
 		if err != nil {
 			return err
 		}
+
 		r.setData(data)
 	}
 

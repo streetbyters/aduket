@@ -27,7 +27,7 @@ type ExpectedResponse struct {
 }
 
 func TestServerResponse(t *testing.T) {
-	serverTests := []struct {
+	tests := []struct {
 		route               Route
 		responseRuleOptions []ResponseRuleOption
 		expectedResponse    ExpectedResponse
@@ -84,7 +84,7 @@ func TestServerResponse(t *testing.T) {
 		},
 	}
 
-	for _, test := range serverTests {
+	for _, test := range tests {
 		server, _ := NewServer(test.route.httpMethod, test.route.path, test.responseRuleOptions...)
 		defer server.Close()
 		testRouteResponse(t, server.URL, test.route, test.expectedResponse)
@@ -94,7 +94,7 @@ func TestServerResponse(t *testing.T) {
 type bodyAssertFunc func(interface{}, Body) (bool, error)
 
 func TestServerRequestRecorderBody(t *testing.T) {
-	serverTests := []struct {
+	tests := []struct {
 		route          Route
 		request        func(string) *http.Request
 		bodyAssertFunc bodyAssertFunc
@@ -118,7 +118,7 @@ func TestServerRequestRecorderBody(t *testing.T) {
 		},
 	}
 
-	for _, test := range serverTests {
+	for _, test := range tests {
 		server, requestRecorder := NewServer(test.route.httpMethod, test.route.path)
 		defer server.Close()
 
@@ -130,7 +130,7 @@ func TestServerRequestRecorderBody(t *testing.T) {
 }
 
 func TestMultiRouteServerResponse(t *testing.T) {
-	multiRouteServerTests := []struct {
+	tests := []struct {
 		routeResponseRuleOptions map[Route][]ResponseRuleOption
 		expectedRouteResponses   map[Route]ExpectedResponse
 	}{
@@ -162,7 +162,7 @@ func TestMultiRouteServerResponse(t *testing.T) {
 		},
 	}
 
-	for _, test := range multiRouteServerTests {
+	for _, test := range tests {
 		server, _ := NewMultiRouteServer(test.routeResponseRuleOptions)
 		defer server.Close()
 
