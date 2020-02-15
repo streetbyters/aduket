@@ -6,21 +6,23 @@
     <i>Straight-forward HTTP client testing, assertions included!</i>
 </p>
 
-Simple `httptest.Server` wrapper with a little request recorder spice on it. No special DSL, no complex API to learn. Just create a server and fire your request like an **Hadouken** then assert it.
+<p align="center">
+  <a href="https://github.com/streetbyters/aduket/actions">
+    <img src="https://img.shields.io/github/workflow/status/streetbyters/aduket/Go" />
+  </a>
+  <a href="https://codecov.io/gh/streetbyters/aduket">
+    <img src="https://codecov.io/gh/streetbyters/aduket/branch/master/graph/badge.svg" />
+  </a>
+  <a href="https://goreportcard.com/report/github.com/streetbyters/aduket">
+    <img src="https://goreportcard.com/badge/github.com/streetbyters/aduket" />
+  </a>
+  <a href="https://github.com/streetbyters/aduket/blob/master/LICENSE">
+    <img src="https://img.shields.io/github/license/streetbyters/aduket.svg">
+  </a>
+</p>
 
-## TODO
- - [x] Add support for accessing to each RequestRecorder of Route of MultiRouteServer
- - [ ] Extract Request().Body to requestRecorder.Body binding logic to CustomBinder
- - [ ] Add badges to README.md
- - [ ] Add NewServerWithTimeout for testing API timeouts
- - [ ] http.RoundTripper interface can be implemented to mock arbitrary URLs
- - [ ] Add multiple request assertion logic
- - [ ] Add example usages
- - [ ] Add docs
- - [ ] Add meaningful error messages to assertions
- - [x] Add response headers to NewServer
- - [x] Add request header assertions
- - [x] Add multiple route registration to server
+
+Simple `httptest.Server` wrapper with a little request recorder spice on it. No special DSL, no complex API to learn. Just create a server and fire your request like an **Hadouken** then assert it.
 
 ## LICENSE
 Copyright 2020 StreetByters Community
