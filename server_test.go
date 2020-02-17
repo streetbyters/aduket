@@ -33,7 +33,7 @@ func TestServerResponse(t *testing.T) {
 		expectedResponse    ExpectedResponse
 	}{
 		{
-			route: Route{httpMethod: http.MethodGet, path: "/user"},
+			route: Route{HttpMethod: http.MethodGet, Path: "/user"},
 			responseRuleOptions: []ResponseRuleOption{
 				StatusCode(http.StatusOK),
 				JSONBody(User{ID: 123, Name: "kalt"}),
@@ -46,7 +46,7 @@ func TestServerResponse(t *testing.T) {
 			},
 		},
 		{
-			route: Route{httpMethod: http.MethodPost, path: "/user"},
+			route: Route{HttpMethod: http.MethodPost, Path: "/user"},
 			responseRuleOptions: []ResponseRuleOption{
 				StatusCode(http.StatusCreated),
 				XMLBody(Book{ISBN: "223-123", Name: "n0 n4m3"}),
@@ -59,7 +59,7 @@ func TestServerResponse(t *testing.T) {
 			},
 		},
 		{
-			route: Route{httpMethod: http.MethodGet, path: "/hi"},
+			route: Route{HttpMethod: http.MethodGet, Path: "/hi"},
 			responseRuleOptions: []ResponseRuleOption{
 				StatusCode(http.StatusOK),
 				StringBody("Hello"),
@@ -71,7 +71,7 @@ func TestServerResponse(t *testing.T) {
 			},
 		},
 		{
-			route: Route{httpMethod: http.MethodGet, path: "/community/best"},
+			route: Route{HttpMethod: http.MethodGet, Path: "/community/best"},
 			responseRuleOptions: []ResponseRuleOption{
 				StatusCode(http.StatusTeapot),
 				ByteBody([]byte{'S', 'T', 'R', 'E', 'E', 'T', ' ', 'B', 'Y', 'T', 'E', 'R', 'S'}),
@@ -85,7 +85,7 @@ func TestServerResponse(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		server, _ := NewServer(test.route.httpMethod, test.route.path, test.responseRuleOptions...)
+		server, _ := NewServer(test.route.HttpMethod, test.route.Path, test.responseRuleOptions...)
 		defer server.Close()
 		testRouteResponse(t, server.URL, test.route, test.expectedResponse)
 	}
@@ -119,7 +119,7 @@ func TestServerRequestRecorderBody(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		server, requestRecorder := NewServer(test.route.httpMethod, test.route.path)
+		server, requestRecorder := NewServer(test.route.HttpMethod, test.route.Path)
 		defer server.Close()
 
 		_, err := http.DefaultClient.Do(test.request(server.URL))
@@ -227,7 +227,7 @@ func TestMultiRouteServerRequestRecorderBody(t *testing.T) {
 }
 
 func testRouteResponse(t *testing.T, serverURL string, route Route, expectedResponse ExpectedResponse) {
-	request, err := http.NewRequest(route.httpMethod, serverURL+route.path, http.NoBody)
+	request, err := http.NewRequest(route.HttpMethod, serverURL+route.Path, http.NoBody)
 	assert.Nil(t, err)
 
 	response, err := http.DefaultClient.Do(request)

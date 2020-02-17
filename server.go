@@ -26,8 +26,8 @@ import (
 type responseBody []byte
 
 type Route struct {
-	httpMethod string
-	path       string
+	HttpMethod string
+	Path       string
 }
 
 type responseRule struct {
@@ -44,7 +44,7 @@ func NewMultiRouteServer(routeResponseOptions map[Route][]ResponseRuleOption) (*
 	for route, responseRule := range routeResponseRules {
 		routeRequestRecorder := NewRequestRecorder()
 		requestRecorder[route] = routeRequestRecorder
-		e.Add(route.httpMethod, route.path, spyHandler(routeRequestRecorder, responseRule))
+		e.Add(route.HttpMethod, route.Path, spyHandler(routeRequestRecorder, responseRule))
 	}
 
 	return httptest.NewServer(e), requestRecorder

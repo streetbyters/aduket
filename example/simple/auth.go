@@ -31,10 +31,7 @@ func (a *AuthClient) Login(credentials Credentials) (Token, error) {
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("X-If-You-Read-This", "send-a-hadouken-back")
 
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return Token{}, err
-	}
+	res, _ := http.DefaultClient.Do(req)
 
 	if res.StatusCode == http.StatusOK {
 		body, _ := ioutil.ReadAll(res.Body)
