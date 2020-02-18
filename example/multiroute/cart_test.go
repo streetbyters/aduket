@@ -46,7 +46,8 @@ func TestGetTotalPrice(t *testing.T) {
 
 	actualPrice, err := shoppingCart.GetTotalPrice(111)
 
-	authHeader := http.Header{"Authorization": []string{token}}
+	authHeader := http.Header{}
+	authHeader.Add("Authorization", token)
 
 	cartServerRequestRecorder[cartRoute].AssertParamEqual(t, "userid", "111")
 	cartServerRequestRecorder[cartRoute].AssertHeaderEqual(t, authHeader)

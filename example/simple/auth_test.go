@@ -27,7 +27,9 @@ func TestLogin(t *testing.T) {
 	// Assert if request sent with correct body
 	requestRecorder.AssertJSONBodyEqual(t, credentials)
 	// Assert if request sent with correct headers
-	requestRecorder.AssertHeaderEqual(t, http.Header{"X-If-You-Read-This": []string{"send-a-hadouken-back"}})
+	expectedHeader := http.Header{}
+	expectedHeader.Add("X-If-You-Read-This", "send-a-hadouken-back")
+	requestRecorder.AssertHeaderEqual(t, expectedHeader)
 
 	assert.Equal(t, Token{"12345"}, actualToken)
 }
