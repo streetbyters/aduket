@@ -1,7 +1,7 @@
 package auth
 
 import (
-	"aduket"
+	"github.com/streetbyters/aduket"
 	"net/http"
 	"testing"
 

@@ -1,7 +1,7 @@
 package cart
 
 import (
-	"aduket"
+	"github.com/streetbyters/aduket"
 	"net/http"
 	"testing"
 
