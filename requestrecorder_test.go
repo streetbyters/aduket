@@ -125,6 +125,9 @@ func TestAssertFormParamEqual(t *testing.T) {
 
 	assert.True(t, requestRecorder.AssertFormParamEqual(tester, "name", []string{"Joe"}))
 	assert.False(t, tester.Failed())
+
+	assert.False(t, requestRecorder.AssertFormParamEqual(tester, "name", []string{"Doe"}))
+	assert.True(t, tester.Failed())
 }
 
 func TestAssertHeaderEqual(t *testing.T) {

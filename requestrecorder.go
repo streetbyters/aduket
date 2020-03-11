@@ -17,17 +17,13 @@
 package aduket
 
 import (
-	"encoding/json"
-	"encoding/xml"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"testing"
 
 	"github.com/clbanning/mxj"
 	"github.com/labstack/echo"
-	"github.com/stretchr/testify/assert"
 )
 
 type RequestRecorder struct {
@@ -46,87 +42,6 @@ func NewRequestRecorder() *RequestRecorder {
 	requestRecorder.Body = make(Body)
 	requestRecorder.Params = make(map[string]string)
 	return requestRecorder
-}
-
-func (r RequestRecorder) AssertStringBodyEqual(t *testing.T, expectedBody string) bool {
-	return assert.Equal(t, expectedBody, string(r.Data))
-}
-
-func (r RequestRecorder) AssertJSONBodyEqual(t *testing.T, expectedBody interface{}) bool {
-	isEqual, err := isJSONEqual(expectedBody, r.Body)
-	if err != nil {
-		assert.Fail(t, err.Error())
-	}
-
-	return assert.True(t, isEqual)
-}
-
-func (r RequestRecorder) AssertXMLBodyEqual(t *testing.T, expectedXMLBody interface{}) bool {
-	isEqual, err := isXMLEqual(expectedXMLBody, r.Body)
-	if err != nil {
-		assert.Fail(t, err.Error())
-	}
-
-	return assert.True(t, isEqual)
-}
-
-func (r RequestRecorder) AssertParamEqual(t *testing.T, paramName, paramValue string) bool {
-	return assert.Equal(t, r.Params[paramName], paramValue)
-}
-
-func (r RequestRecorder) AssertQueryParamEqual(t *testing.T, queryParamName string, queryParamValues []string) bool {
-	return assert.Equal(t, r.QueryParams[queryParamName], queryParamValues)
-}
-
-func (r RequestRecorder) AssertFormParamEqual(t *testing.T, formParamName string, formValues []string) bool {
-	return assert.Equal(t, r.FormParams[formParamName], formValues)
-}
-
-func (r RequestRecorder) AssertHeaderEqual(t *testing.T, expectedHeader http.Header) bool {
-	return assert.True(t, isHeaderContains(expectedHeader, r.Header))
-}
-
-func isHeaderContains(expectedHeader, actualHeader http.Header) bool {
-	for key, value := range expectedHeader {
-		actualValue, contains := actualHeader[key]
-		if !contains {
-			return false
-		}
-
-		if !assert.ObjectsAreEqualValues(value, actualValue) {
-			return false
-		}
-	}
-	return true
-}
-
-func isJSONEqual(expectedBody interface{}, actualBody Body) (bool, error) {
-	bodyJSON, err := json.Marshal(expectedBody)
-	if err != nil {
-		return false, err
-	}
-
-	expectedRecorderBody := Body{}
-	if err := json.Unmarshal(bodyJSON, &expectedRecorderBody); err != nil {
-		return false, err
-	}
-	return assert.ObjectsAreEqualValues(expectedRecorderBody, actualBody), nil
-}
-
-func isXMLEqual(expectedBody interface{}, actualBody Body) (bool, error) {
-	bodyXML, err := xml.Marshal(expectedBody)
-	if err != nil {
-		return false, err
-	}
-
-	mv, err := mxj.NewMapXml(bodyXML)
-	if err != nil {
-		return false, err
-	}
-
-	expectedRecorderBody := mv.Old()
-
-	return assert.ObjectsAreEqualValues(expectedRecorderBody, actualBody), nil
 }
 
 func (r *RequestRecorder) saveContext(ctx echo.Context) error {
