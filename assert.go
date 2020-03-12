@@ -31,12 +31,14 @@ import (
 )
 
 func (r RequestRecorder) AssertStringBodyEqual(t *testing.T, expectedBody string) bool {
-	if expectedBody == string(r.Data) {
+	actualBody := string(r.Data)
+
+	if expectedBody == actualBody {
 		return true
 	}
 
 	failTest(t, "String bodies are not equal!", func() {
-		color.Red("Actual:\t  %s", string(r.Data))
+		color.Red("Actual:\t  %s", actualBody)
 		color.Yellow("Expected: %s", expectedBody)
 	})
 
