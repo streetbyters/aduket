@@ -31,7 +31,16 @@ import (
 )
 
 func (r RequestRecorder) AssertStringBodyEqual(t *testing.T, expectedBody string) bool {
-	return assert.Equal(t, expectedBody, string(r.Data))
+	if expectedBody == string(r.Data) {
+		return true
+	}
+
+	failTest(t, "String bodies are not equal!", func() {
+		color.Red("Actual:\t  %s", string(r.Data))
+		color.Yellow("Expected: %s", expectedBody)
+	})
+
+	return false
 }
 
 func (r RequestRecorder) AssertJSONBodyEqual(t *testing.T, expectedBody interface{}) bool {
@@ -47,6 +56,7 @@ func (r RequestRecorder) AssertJSONBodyEqual(t *testing.T, expectedBody interfac
 	failTest(t, "JSON Bodies are not equal!", func() {
 		printJSONDiff(expectedBody, r.Body)
 	})
+
 	return false
 }
 
@@ -60,7 +70,10 @@ func (r RequestRecorder) AssertXMLBodyEqual(t *testing.T, expectedXMLBody interf
 		return true
 	}
 
-	failTest(t, "XML Bodies are not equal!")
+	failTest(t, "XML Bodies are not equal!", func() {
+		printXMLDiff(expectedXMLBody, r.Body)
+	})
+
 	return false
 }
 
@@ -73,6 +86,7 @@ func (r RequestRecorder) AssertParamEqual(t *testing.T, paramName, paramValue st
 		color.Red("Actual:\t  %s", r.Params[paramName])
 		color.Yellow("Expected: %s", paramValue)
 	})
+
 	return false
 }
 
@@ -85,6 +99,7 @@ func (r RequestRecorder) AssertQueryParamEqual(t *testing.T, queryParamName stri
 		color.Red("Actual:\t  %s", r.QueryParams[queryParamName])
 		color.Yellow("Expected: %s", queryParamValues)
 	})
+
 	return false
 }
 
@@ -97,6 +112,7 @@ func (r RequestRecorder) AssertFormParamEqual(t *testing.T, formParamName string
 		color.Red("Actual:\t  %s", r.FormParams[formParamName])
 		color.Yellow("Expected: %s", formValues)
 	})
+
 	return false
 }
 
@@ -108,6 +124,7 @@ func (r RequestRecorder) AssertHeaderEqual(t *testing.T, expectedHeader http.Hea
 	failTest(t, "HTTP Headers are not equal", func() {
 		printJSONDiff(expectedHeader, r.Header)
 	})
+
 	return false
 }
 
@@ -122,43 +139,63 @@ func isHeaderContains(expectedHeader, actualHeader http.Header) bool {
 			return false
 		}
 	}
+
 	return true
 }
 
 func isJSONEqual(expectedBody interface{}, actualBody Body) (bool, error) {
-	bodyJSON, err := json.Marshal(expectedBody)
+	expectedRecorderBody, err := jsonObjectToBody(expectedBody)
 	if err != nil {
 		return false, err
 	}
 
-	expectedRecorderBody := Body{}
-	if err := json.Unmarshal(bodyJSON, &expectedRecorderBody); err != nil {
-		return false, err
-	}
 	return assert.ObjectsAreEqualValues(expectedRecorderBody, actualBody), nil
 }
 
 func isXMLEqual(expectedBody interface{}, actualBody Body) (bool, error) {
-	bodyXML, err := xml.Marshal(expectedBody)
+	expectedRecorderBody, err := xmlObjectToBody(expectedBody)
 	if err != nil {
 		return false, err
 	}
-
-	mv, err := mxj.NewMapXml(bodyXML)
-	if err != nil {
-		return false, err
-	}
-
-	expectedRecorderBody := mv.Old()
 
 	return assert.ObjectsAreEqualValues(expectedRecorderBody, actualBody), nil
 }
 
+func xmlObjectToBody(xmlObject interface{}) (Body, error) {
+	bodyXML, err := xml.Marshal(xmlObject)
+	if err != nil {
+		return nil, err
+	}
+
+	mv, err := mxj.NewMapXml(bodyXML)
+	if err != nil {
+		return nil, err
+	}
+
+	return mv.Old(), nil
+}
+
+func jsonObjectToBody(jsonObject interface{}) (Body, error) {
+	jsonBody, err := json.Marshal(jsonObject)
+	if err != nil {
+		return nil, err
+	}
+
+	body := Body{}
+	if err := json.Unmarshal(jsonBody, &body); err != nil {
+		return nil, err
+	}
+
+	return body, err
+}
+
 func failTest(t *testing.T, message string, callback ...func()) {
 	color.Red(message)
+
 	if len(callback) > 0 {
 		callback[0]()
 	}
+
 	t.Fail()
 }
 
@@ -180,4 +217,9 @@ func printJSONDiff(expected, actual interface{}) {
 
 	color.Yellow("Difference:")
 	fmt.Println(diffString)
+}
+
+func printXMLDiff(expected interface{}, actualBody Body) {
+	expectedBody, _ := xmlObjectToBody(expected)
+	printJSONDiff(expectedBody, actualBody)
 }
