@@ -19,6 +19,7 @@ package aduket
 import (
 	"net/http"
 	"net/http/httptest"
+	"time"
 
 	"github.com/labstack/echo"
 )
@@ -34,6 +35,7 @@ type responseRule struct {
 	header     http.Header
 	body       responseBody
 	statusCode int
+	timeout    time.Duration
 }
 
 func NewMultiRouteServer(routeResponseOptions map[Route][]ResponseRuleOption) (*httptest.Server, map[Route]*RequestRecorder) {
@@ -95,6 +97,10 @@ func (r *RequestRecorderBinder) Bind(requestRecorder interface{}, ctx echo.Conte
 
 func spyHandler(requestRecorder *RequestRecorder, res responseRule) echo.HandlerFunc {
 	return func(ctx echo.Context) error {
+		if res.timeout != 0 {
+			time.Sleep(res.timeout)
+		}
+
 		if err := ctx.Bind(requestRecorder); err != nil {
 			return err
 		}

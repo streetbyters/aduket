@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"net/http"
+	"time"
 )
 
 type ResponseRuleOption func(*responseRule)
@@ -43,6 +44,13 @@ func Header(header http.Header) ResponseRuleOption {
 		r.header = header
 	}
 }
+
+func Timeout(duration time.Duration) ResponseRuleOption {
+	return func(r *responseRule) {
+		r.timeout = duration
+	}
+}
+
 func jsonToResponseBody(j interface{}) responseBody {
 	jsonBytes, _ := json.Marshal(j)
 	return jsonBytes

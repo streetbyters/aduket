@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -127,6 +128,20 @@ func TestServerRequestRecorderBody(t *testing.T) {
 
 		testRouteRequestRecorderBody(t, test.expectedBody, requestRecorder, test.bodyAssertFunc)
 	}
+}
+
+func TestServerWithTimeout(t *testing.T) {
+	server, _ := NewServer(http.MethodGet, "/user", Timeout(20*time.Millisecond))
+	defer server.Close()
+
+	req := newJSONRequest(http.MethodGet, server.URL+"/user", http.NoBody)
+
+	client := http.Client{
+		Timeout: 5 * time.Millisecond,
+	}
+
+	_, err := client.Do(req)
+	assert.NotNil(t, err)
 }
 
 func TestMultiRouteServerResponse(t *testing.T) {
