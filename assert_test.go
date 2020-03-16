@@ -152,7 +152,7 @@ func TestAssertNoRequest(t *testing.T) {
 	assert.False(t, tester.Failed())
 
 	ctx := echo.New().NewContext(dummyRequest, nil)
-	requestRecorder.saveContext(ctx)
+	spyHandler(requestRecorder, responseRule{})(ctx)
 
 	assert.False(t, requestRecorder.AssertNoRequest(tester))
 	assert.True(t, tester.Failed())

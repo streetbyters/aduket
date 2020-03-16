@@ -39,6 +39,12 @@ func ByteBody(b []byte) ResponseRuleOption {
 	}
 }
 
+func CorruptedBody() ResponseRuleOption {
+	return func(r *responseRule) {
+		r.sendCorruptedBody = true
+	}
+}
+
 func Header(header http.Header) ResponseRuleOption {
 	return func(r *responseRule) {
 		r.header = header

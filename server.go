@@ -32,10 +32,11 @@ type Route struct {
 }
 
 type responseRule struct {
-	header     http.Header
-	body       responseBody
-	statusCode int
-	timeout    time.Duration
+	header            http.Header
+	body              responseBody
+	statusCode        int
+	timeout           time.Duration
+	sendCorruptedBody bool
 }
 
 func NewMultiRouteServer(routeResponseOptions map[Route][]ResponseRuleOption) (*httptest.Server, map[Route]*RequestRecorder) {
@@ -97,6 +98,14 @@ func (r *RequestRecorderBinder) Bind(requestRecorder interface{}, ctx echo.Conte
 
 func spyHandler(requestRecorder *RequestRecorder, res responseRule) echo.HandlerFunc {
 	return func(ctx echo.Context) error {
+		requestRecorder.isRequestReceived = true
+
+		if res.sendCorruptedBody {
+			// Forces client to read empty buffer and BOOM!
+			ctx.Response().Header().Set("Content-Length", "1")
+			return nil
+		}
+
 		if res.timeout != 0 {
 			time.Sleep(res.timeout)
 		}

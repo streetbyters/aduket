@@ -92,6 +92,21 @@ func TestServerResponse(t *testing.T) {
 	}
 }
 
+func TestCorruptedServerResponse(t *testing.T) {
+	server, _ := NewServer(http.MethodGet, "/user", CorruptedBody())
+	defer server.Close()
+
+	request, err := http.NewRequest(http.MethodGet, server.URL+"/user", http.NoBody)
+	assert.Nil(t, err)
+
+	res, err := http.DefaultClient.Do(request)
+	assert.Nil(t, err)
+
+	_, err = ioutil.ReadAll(res.Body)
+
+	assert.NotNil(t, err)
+}
+
 type bodyAssertFunc func(interface{}, Body) (bool, error)
 
 func TestServerRequestRecorderBody(t *testing.T) {

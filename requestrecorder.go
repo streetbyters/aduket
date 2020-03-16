@@ -46,8 +46,6 @@ func NewRequestRecorder() *RequestRecorder {
 }
 
 func (r *RequestRecorder) saveContext(ctx echo.Context) error {
-	r.isRequestReceived = true
-
 	if ctx.Request().Header.Get(echo.HeaderContentType) == echo.MIMEApplicationXML {
 		r.bindXML(ctx.Request().Body)
 		return nil
