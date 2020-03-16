@@ -128,7 +128,7 @@ func TestAssertFormParamEqual(t *testing.T) {
 	assert.True(t, tester.Failed())
 }
 
-func TestAssertHeaderEqual(t *testing.T) {
+func TestAssertHeaderContains(t *testing.T) {
 	ctx := echo.New().NewContext(dummyRequest, nil)
 	ctx.Request().Header = http.Header{"Test": []string{"123"}}
 
@@ -137,11 +137,11 @@ func TestAssertHeaderEqual(t *testing.T) {
 
 	tester := &testing.T{}
 
-	assert.True(t, requestRecorder.AssertHeaderEqual(tester, http.Header{"Test": []string{"123"}}))
+	assert.True(t, requestRecorder.AssertHeaderContains(tester, http.Header{"Test": []string{"123"}}))
 	assert.False(t, tester.Failed())
 
-	assert.False(t, requestRecorder.AssertHeaderEqual(tester, http.Header{"Test": []string{"noo"}}))
-	assert.False(t, requestRecorder.AssertHeaderEqual(tester, http.Header{"West": []string{"123"}}))
+	assert.False(t, requestRecorder.AssertHeaderContains(tester, http.Header{"Test": []string{"noo"}}))
+	assert.False(t, requestRecorder.AssertHeaderContains(tester, http.Header{"West": []string{"123"}}))
 }
 
 func TestAssertNoRequest(t *testing.T) {

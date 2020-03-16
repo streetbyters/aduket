@@ -118,7 +118,7 @@ func (r RequestRecorder) AssertFormParamEqual(t *testing.T, formParamName string
 	return false
 }
 
-func (r RequestRecorder) AssertHeaderEqual(t *testing.T, expectedHeader http.Header) bool {
+func (r RequestRecorder) AssertHeaderContains(t *testing.T, expectedHeader http.Header) bool {
 	if isHeaderContains(expectedHeader, r.Header) {
 		return true
 	}

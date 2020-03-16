@@ -1,9 +1,10 @@
 package cart
 
 import (
-	"github.com/streetbyters/aduket"
 	"net/http"
 	"testing"
+
+	"github.com/streetbyters/aduket"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -50,14 +51,14 @@ func TestGetTotalPrice(t *testing.T) {
 	authHeader.Add("Authorization", token)
 
 	cartServerRequestRecorder[cartRoute].AssertParamEqual(t, "userid", "111")
-	cartServerRequestRecorder[cartRoute].AssertHeaderEqual(t, authHeader)
+	cartServerRequestRecorder[cartRoute].AssertHeaderContains(t, authHeader)
 
 	cartServerRequestRecorder[discountRoute].AssertParamEqual(t, "userid", "111")
-	cartServerRequestRecorder[discountRoute].AssertHeaderEqual(t, authHeader)
+	cartServerRequestRecorder[discountRoute].AssertHeaderContains(t, authHeader)
 
 	productServerRequestRecorder.AssertParamEqual(t, "productid", "123")
 	productServerRequestRecorder.AssertQueryParamEqual(t, "short", []string{"true"})
-	productServerRequestRecorder.AssertHeaderEqual(t, authHeader)
+	productServerRequestRecorder.AssertHeaderContains(t, authHeader)
 
 	assert.Nil(t, err)
 	assert.Equal(t, 100.0, actualPrice)

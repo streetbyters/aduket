@@ -1,9 +1,10 @@
 package auth
 
 import (
-	"github.com/streetbyters/aduket"
 	"net/http"
 	"testing"
+
+	"github.com/streetbyters/aduket"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -29,7 +30,7 @@ func TestLogin(t *testing.T) {
 	// Assert if request sent with correct headers
 	expectedHeader := http.Header{}
 	expectedHeader.Add("X-If-You-Read-This", "send-a-hadouken-back")
-	requestRecorder.AssertHeaderEqual(t, expectedHeader)
+	requestRecorder.AssertHeaderContains(t, expectedHeader)
 
 	assert.Equal(t, Token{"12345"}, actualToken)
 }
