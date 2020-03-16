@@ -130,6 +130,16 @@ func (r RequestRecorder) AssertHeaderEqual(t *testing.T, expectedHeader http.Hea
 	return false
 }
 
+func (r RequestRecorder) AssertNoRequest(t *testing.T) bool {
+	if !r.isRequestReceived {
+		return true
+	}
+
+	failTest(t, "No requests were expected, but a request was received!")
+
+	return false
+}
+
 func isHeaderContains(expectedHeader, actualHeader http.Header) bool {
 	for key, value := range expectedHeader {
 		actualValue, contains := actualHeader[key]

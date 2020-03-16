@@ -80,7 +80,6 @@ func TestAssertXMLBodyEqual(t *testing.T) {
 }
 
 func TestAssertParamEqual(t *testing.T) {
-
 	ctx := echo.New().NewContext(dummyRequest, nil)
 	ctx.SetParamNames("id")
 	ctx.SetParamValues("123")
@@ -98,7 +97,6 @@ func TestAssertParamEqual(t *testing.T) {
 }
 
 func TestAssertQueryParamEqual(t *testing.T) {
-
 	ctx := echo.New().NewContext(dummyRequest, nil)
 	ctx.QueryParams().Add("name", "Joe")
 
@@ -144,6 +142,20 @@ func TestAssertHeaderEqual(t *testing.T) {
 
 	assert.False(t, requestRecorder.AssertHeaderEqual(tester, http.Header{"Test": []string{"noo"}}))
 	assert.False(t, requestRecorder.AssertHeaderEqual(tester, http.Header{"West": []string{"123"}}))
+}
+
+func TestAssertNoRequest(t *testing.T) {
+	requestRecorder := NewRequestRecorder()
+
+	tester := &testing.T{}
+	assert.True(t, requestRecorder.AssertNoRequest(tester))
+	assert.False(t, tester.Failed())
+
+	ctx := echo.New().NewContext(dummyRequest, nil)
+	requestRecorder.saveContext(ctx)
+
+	assert.False(t, requestRecorder.AssertNoRequest(tester))
+	assert.True(t, tester.Failed())
 }
 
 func newStringRequest(method, url, body string) *http.Request {

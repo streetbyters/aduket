@@ -27,12 +27,13 @@ import (
 )
 
 type RequestRecorder struct {
-	Body        Body
-	Header      http.Header
-	Data        []byte
-	Params      map[string]string
-	QueryParams url.Values
-	FormParams  url.Values
+	Body              Body
+	Header            http.Header
+	Data              []byte
+	Params            map[string]string
+	QueryParams       url.Values
+	FormParams        url.Values
+	isRequestReceived bool
 }
 
 type Body map[string]interface{}
@@ -45,6 +46,8 @@ func NewRequestRecorder() *RequestRecorder {
 }
 
 func (r *RequestRecorder) saveContext(ctx echo.Context) error {
+	r.isRequestReceived = true
+
 	if ctx.Request().Header.Get(echo.HeaderContentType) == echo.MIMEApplicationXML {
 		r.bindXML(ctx.Request().Body)
 		return nil
