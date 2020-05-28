@@ -90,7 +90,7 @@ func (r *RequestRecorder) setData(b []byte) {
 }
 
 func (r *RequestRecorder) setHeader(header http.Header) {
-	r.Header = header.Clone()
+	r.Header = header
 }
 
 func (r *RequestRecorder) bindXML(from io.ReadCloser) error {
