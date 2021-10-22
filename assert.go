@@ -32,7 +32,7 @@ func (r RequestRecorder) AssertStringBodyEqual(t *testing.T, expectedBody string
 func (r RequestRecorder) AssertJSONBodyEqual(t *testing.T, expectedBody interface{}) bool {
 	expectedBody, err := json.Marshal(expectedBody)
 	if err != nil {
-		panic("expected body could not marshaled to json")
+		t.Error("expected body could not marshaled to json")
 	}
 	return assert.Equal(t, expectedBody, r.Body)
 }
@@ -40,7 +40,7 @@ func (r RequestRecorder) AssertJSONBodyEqual(t *testing.T, expectedBody interfac
 func (r RequestRecorder) AssertXMLBodyEqual(t *testing.T, expectedXMLBody interface{}) bool {
 	expectedBody, err := xml.Marshal(expectedXMLBody)
 	if err != nil {
-		panic("expected body could not marshaled to xml")
+		t.Error("expected body could not marshaled to xml")
 	}
 	return assert.Equal(t, expectedBody, r.Body)
 }
