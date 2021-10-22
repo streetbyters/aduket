@@ -30,19 +30,19 @@ func (r RequestRecorder) AssertStringBodyEqual(t *testing.T, expectedBody string
 }
 
 func (r RequestRecorder) AssertJSONBodyEqual(t *testing.T, expectedBody interface{}) bool {
-	expectedBody, err := json.Marshal(expectedBody)
+	expectedBodyBytes, err := json.Marshal(expectedBody)
 	if err != nil {
 		t.Error("expected body could not marshaled to json")
 	}
-	return assert.Equal(t, expectedBody, r.Body)
+	return assert.Equal(t, string(expectedBodyBytes), string(r.Body))
 }
 
 func (r RequestRecorder) AssertXMLBodyEqual(t *testing.T, expectedXMLBody interface{}) bool {
-	expectedBody, err := xml.Marshal(expectedXMLBody)
+	expectedBodyBytes, err := xml.Marshal(expectedXMLBody)
 	if err != nil {
 		t.Error("expected body could not marshaled to xml")
 	}
-	return assert.Equal(t, expectedBody, r.Body)
+	return assert.Equal(t, string(expectedBodyBytes), string(r.Body))
 }
 
 func (r RequestRecorder) AssertParamEqual(t *testing.T, paramName, paramValue string) bool {
@@ -76,7 +76,7 @@ func isHeaderContains(expectedHeader, actualHeader http.Header) bool {
 
 func isJSONEqual(expectedBody interface{}, actualBody Body) (bool, error) {
 	expectedBytes, err := json.Marshal(expectedBody)
-	return assert.ObjectsAreEqual(expectedBytes, actualBody), err
+	return assert.ObjectsAreEqualValues(expectedBytes, actualBody), err
 }
 
 func isXMLEqual(expectedBody interface{}, actualBody Body) (bool, error) {

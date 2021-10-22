@@ -35,7 +35,7 @@ type RequestRecorder struct {
 	isRequestReceived bool
 }
 
-type Body interface{}
+type Body []byte
 
 func NewRequestRecorder() *RequestRecorder {
 	return &RequestRecorder{
