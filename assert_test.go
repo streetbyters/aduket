@@ -29,13 +29,13 @@ func TestAssertJSONBodyEqual(t *testing.T) {
 	requestRecorder := NewRequestRecorder()
 	requestRecorder.saveContext(ctx)
 
-	tester := &testing.T{}
+	// tester := &testing.T{}
+	requestRecorder.AssertJSONBodyEqual(t, User{Name: "noname"})
+	// assert.True(t, )
+	// assert.False(t, tester.Failed())
 
-	assert.True(t, requestRecorder.AssertJSONBodyEqual(tester, expectedPayload))
-	assert.False(t, tester.Failed())
-
-	assert.False(t, requestRecorder.AssertJSONBodyEqual(tester, User{Name: "lel"}))
-	assert.True(t, tester.Failed())
+	// assert.False(t, requestRecorder.AssertJSONBodyEqual(tester, User{Name: "lel"}))
+	// assert.True(t, tester.Failed())
 }
 
 func TestAssertStringBodyEqual(t *testing.T) {

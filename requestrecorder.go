@@ -22,12 +22,11 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/clbanning/mxj"
 	"github.com/labstack/echo"
 )
 
 type RequestRecorder struct {
-	Body              Body
+	Body              interface{}
 	Header            http.Header
 	Data              []byte
 	Params            map[string]string
@@ -36,11 +35,11 @@ type RequestRecorder struct {
 	isRequestReceived bool
 }
 
-type Body map[string]interface{}
+type Body interface{}
 
 func NewRequestRecorder() *RequestRecorder {
 	requestRecorder := &RequestRecorder{}
-	requestRecorder.Body = make(Body)
+	requestRecorder.Body = nil
 	requestRecorder.Params = make(map[string]string)
 	return requestRecorder
 }
@@ -51,24 +50,19 @@ func (r *RequestRecorder) saveContext(ctx echo.Context) error {
 		return nil
 	}
 
-	defaultBinder := new(echo.DefaultBinder)
-
-	if err := defaultBinder.Bind(&r.Body, ctx); err != nil {
-		data, err := ioutil.ReadAll(ctx.Request().Body)
-		if err != nil {
-			return err
-		}
-
-		r.setData(data)
+	bodyBytes, err := ioutil.ReadAll(ctx.Request().Body)
+	if err != nil {
+		return err
 	}
 
+	r.setData(bodyBytes)
+	r.Body = bodyBytes
 	r.setParams(ctx.ParamNames(), ctx.ParamValues())
 	r.setQueryParams(ctx.QueryParams())
 	r.setFormParams(ctx.Request().Form)
 	r.setHeader(ctx.Request().Header)
 
 	return nil
-
 }
 
 func (r *RequestRecorder) setQueryParams(queryParams url.Values) {
@@ -98,13 +92,7 @@ func (r *RequestRecorder) bindXML(from io.ReadCloser) error {
 	if err != nil {
 		return err
 	}
-
-	mv, err := mxj.NewMapXml(body)
-	if err != nil {
-		return err
-	}
-
-	r.Body = mv.Old()
+	r.Body = body
 
 	return nil
 }

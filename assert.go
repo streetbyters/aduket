@@ -19,219 +19,67 @@ package aduket
 import (
 	"encoding/json"
 	"encoding/xml"
-	"fmt"
 	"net/http"
 	"testing"
 
-	"github.com/clbanning/mxj"
-	"github.com/fatih/color"
 	"github.com/stretchr/testify/assert"
-	diff "github.com/yudai/gojsondiff"
-	"github.com/yudai/gojsondiff/formatter"
 )
 
 func (r RequestRecorder) AssertStringBodyEqual(t *testing.T, expectedBody string) bool {
-	actualBody := string(r.Data)
-
-	if expectedBody == actualBody {
-		return true
-	}
-
-	failTest(t, "String bodies are not equal!", func() {
-		color.Red("Actual:\t  %s", actualBody)
-		color.Yellow("Expected: %s", expectedBody)
-	})
-
-	return false
+	return assert.Equal(t, expectedBody, string(r.Data))
 }
 
 func (r RequestRecorder) AssertJSONBodyEqual(t *testing.T, expectedBody interface{}) bool {
-	isEqual, err := isJSONEqual(expectedBody, r.Body)
+	expectedBody, err := json.Marshal(expectedBody)
 	if err != nil {
-		assert.Fail(t, err.Error())
+		panic("expected body could not marshaled to json")
 	}
-
-	if isEqual {
-		return true
-	}
-
-	failTest(t, "JSON Bodies are not equal!", func() {
-		printJSONDiff(expectedBody, r.Body)
-	})
-
-	return false
+	return assert.Equal(t, expectedBody, r.Body)
 }
 
 func (r RequestRecorder) AssertXMLBodyEqual(t *testing.T, expectedXMLBody interface{}) bool {
-	isEqual, err := isXMLEqual(expectedXMLBody, r.Body)
+	expectedBody, err := xml.Marshal(expectedXMLBody)
 	if err != nil {
-		assert.Fail(t, err.Error())
+		panic("expected body could not marshaled to xml")
 	}
-
-	if isEqual {
-		return true
-	}
-
-	failTest(t, "XML Bodies are not equal!", func() {
-		printXMLDiff(expectedXMLBody, r.Body)
-	})
-
-	return false
+	return assert.Equal(t, expectedBody, r.Body)
 }
 
 func (r RequestRecorder) AssertParamEqual(t *testing.T, paramName, paramValue string) bool {
-	if assert.ObjectsAreEqual(r.Params[paramName], paramValue) {
-		return true
-	}
-
-	failTest(t, fmt.Sprintf("Param name '%s' is not equal to '%s'", paramName, paramValue), func() {
-		color.Red("Actual:\t  %s", r.Params[paramName])
-		color.Yellow("Expected: %s", paramValue)
-	})
-
-	return false
+	return assert.Equal(t, paramValue, r.Params[paramName])
 }
 
 func (r RequestRecorder) AssertQueryParamEqual(t *testing.T, queryParamName string, queryParamValues []string) bool {
-	if assert.ObjectsAreEqual(r.QueryParams[queryParamName], queryParamValues) {
-		return true
-	}
-
-	failTest(t, fmt.Sprintf("QueryParam name '%s' is not equal to %v", queryParamName, queryParamValues), func() {
-		color.Red("Actual:\t  %s", r.QueryParams[queryParamName])
-		color.Yellow("Expected: %s", queryParamValues)
-	})
-
-	return false
+	return assert.Equal(t, queryParamValues, r.QueryParams[queryParamName])
 }
 
 func (r RequestRecorder) AssertFormParamEqual(t *testing.T, formParamName string, formValues []string) bool {
-	if assert.ObjectsAreEqual(r.FormParams[formParamName], formValues) {
-		return true
-	}
-
-	failTest(t, fmt.Sprintf("FormParam name '%s' is not equal to %v", formParamName, formValues), func() {
-		color.Red("Actual:\t  %s", r.FormParams[formParamName])
-		color.Yellow("Expected: %s", formValues)
-	})
-
-	return false
+	return assert.Equal(t, formValues, r.FormParams[formParamName])
 }
 
 func (r RequestRecorder) AssertHeaderContains(t *testing.T, expectedHeader http.Header) bool {
-	if isHeaderContains(expectedHeader, r.Header) {
-		return true
-	}
-
-	failTest(t, "HTTP Headers are not equal", func() {
-		printJSONDiff(expectedHeader, r.Header)
-	})
-
-	return false
+	return assert.True(t, isHeaderContains(expectedHeader, r.Header))
 }
 
 func (r RequestRecorder) AssertNoRequest(t *testing.T) bool {
-	if !r.isRequestReceived {
-		return true
-	}
-
-	failTest(t, "No requests were expected, but a request was received!")
-
-	return false
+	return assert.False(t, r.isRequestReceived)
 }
 
 func isHeaderContains(expectedHeader, actualHeader http.Header) bool {
+	assertionResult := true
 	for key, value := range expectedHeader {
-		actualValue, contains := actualHeader[key]
-		if !contains {
-			return false
-		}
-
-		if !assert.ObjectsAreEqualValues(value, actualValue) {
-			return false
-		}
+		headerValue := actualHeader.Values(key)
+		assertionResult = assertionResult && assert.ObjectsAreEqualValues(headerValue, value)
 	}
-
-	return true
+	return assertionResult
 }
 
 func isJSONEqual(expectedBody interface{}, actualBody Body) (bool, error) {
-	expectedRecorderBody, err := jsonObjectToBody(expectedBody)
-	if err != nil {
-		return false, err
-	}
-
-	return assert.ObjectsAreEqualValues(expectedRecorderBody, actualBody), nil
+	expectedBytes, err := json.Marshal(expectedBody)
+	return assert.ObjectsAreEqual(expectedBytes, actualBody), err
 }
 
 func isXMLEqual(expectedBody interface{}, actualBody Body) (bool, error) {
-	expectedRecorderBody, err := xmlObjectToBody(expectedBody)
-	if err != nil {
-		return false, err
-	}
-
-	return assert.ObjectsAreEqualValues(expectedRecorderBody, actualBody), nil
-}
-
-func xmlObjectToBody(xmlObject interface{}) (Body, error) {
-	bodyXML, err := xml.Marshal(xmlObject)
-	if err != nil {
-		return nil, err
-	}
-
-	mv, err := mxj.NewMapXml(bodyXML)
-	if err != nil {
-		return nil, err
-	}
-
-	return mv.Old(), nil
-}
-
-func jsonObjectToBody(jsonObject interface{}) (Body, error) {
-	jsonBody, err := json.Marshal(jsonObject)
-	if err != nil {
-		return nil, err
-	}
-
-	body := Body{}
-	if err := json.Unmarshal(jsonBody, &body); err != nil {
-		return nil, err
-	}
-
-	return body, err
-}
-
-func failTest(t *testing.T, message string, callback ...func()) {
-	color.Red(message)
-
-	if len(callback) > 0 {
-		callback[0]()
-	}
-
-	t.Fail()
-}
-
-func printJSONDiff(expected, actual interface{}) {
-	expectedJSON, _ := json.Marshal(expected)
-	actualJSON, _ := json.Marshal(actual)
-
-	differ := diff.New()
-	diff, _ := differ.Compare(expectedJSON, actualJSON)
-
-	var asciiFormatMap map[string]interface{}
-	json.Unmarshal(expectedJSON, &asciiFormatMap)
-
-	formatter := formatter.NewAsciiFormatter(asciiFormatMap, formatter.AsciiFormatterConfig{
-		Coloring: true,
-	})
-
-	diffString, _ := formatter.Format(diff)
-
-	color.Yellow("Difference:")
-	fmt.Println(diffString)
-}
-
-func printXMLDiff(expected interface{}, actualBody Body) {
-	expectedBody, _ := xmlObjectToBody(expected)
-	printJSONDiff(expectedBody, actualBody)
+	expectedBytes, err := xml.Marshal(expectedBody)
+	return assert.ObjectsAreEqualValues(expectedBytes, actualBody), err
 }
