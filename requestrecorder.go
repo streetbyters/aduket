@@ -26,7 +26,7 @@ import (
 )
 
 type RequestRecorder struct {
-	Body              interface{}
+	Body              Body
 	Header            http.Header
 	Data              []byte
 	Params            map[string]string
@@ -38,10 +38,10 @@ type RequestRecorder struct {
 type Body interface{}
 
 func NewRequestRecorder() *RequestRecorder {
-	requestRecorder := &RequestRecorder{}
-	requestRecorder.Body = nil
-	requestRecorder.Params = make(map[string]string)
-	return requestRecorder
+	return &RequestRecorder{
+		Body:   nil,
+		Params: make(map[string]string),
+	}
 }
 
 func (r *RequestRecorder) saveContext(ctx echo.Context) error {
