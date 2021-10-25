@@ -16,6 +16,28 @@ import (
 
 var dummyRequest = httptest.NewRequest(http.MethodGet, "http://streetbyters.com", http.NoBody)
 
+func TestAssertJSONBodyEqual_JSONArray(t *testing.T) {
+	type Post struct {
+		Title string `json:"title"`
+	}
+
+	expectedPayload := []Post{{Title: "post1"}, {Title: "post2"}}
+	request := newJSONRequest(http.MethodPost, "", expectedPayload)
+
+	ctx := echo.New().NewContext(request, nil)
+
+	requestRecorder := NewRequestRecorder()
+	requestRecorder.saveContext(ctx)
+
+	tester := &testing.T{}
+
+	assert.True(t, requestRecorder.AssertJSONBodyEqual(tester, expectedPayload))
+	assert.False(t, tester.Failed())
+
+	assert.False(t, requestRecorder.AssertJSONBodyEqual(tester, []Post{{Title: "post2"}, {Title: "post1"}}))
+	assert.True(t, tester.Failed())
+}
+
 func TestAssertJSONBodyEqual(t *testing.T) {
 	type User struct {
 		Name string `json:"name"`
