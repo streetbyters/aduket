@@ -68,7 +68,7 @@ func (r RequestRecorder) AssertNoRequest(t *testing.T) bool {
 func isHeaderContains(expectedHeader, actualHeader http.Header) bool {
 	assertionResult := true
 	for key, value := range expectedHeader {
-		headerValue := actualHeader.Values(key)
+		headerValue := actualHeader[key]
 		assertionResult = assertionResult && assert.ObjectsAreEqualValues(headerValue, value)
 	}
 	return assertionResult
