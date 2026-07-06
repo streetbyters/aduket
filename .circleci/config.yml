@@ -17,6 +17,6 @@ jobs:
           race: true
 
 workflows:
-  build_test_deploy:
+  check:
     jobs:
-      - build_and_test
+      - test
