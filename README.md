@@ -6,20 +6,9 @@
     <i>Straight-forward HTTP client testing, assertions included!</i>
 </p>
 
-<p align="center">
-  <a href="https://github.com/streetbyters/aduket/actions">
-    <img src="https://img.shields.io/github/workflow/status/streetbyters/aduket/Go" />
-  </a>
-  <a href="https://codecov.io/gh/streetbyters/aduket">
-    <img src="https://codecov.io/gh/streetbyters/aduket/branch/master/graph/badge.svg" />
-  </a>
-  <a href="https://goreportcard.com/report/github.com/streetbyters/aduket">
-    <img src="https://goreportcard.com/badge/github.com/streetbyters/aduket" />
-  </a>
-  <a href="https://github.com/streetbyters/aduket/blob/master/LICENSE">
-    <img src="https://img.shields.io/github/license/streetbyters/aduket.svg">
-  </a>
-</p>
+[![CircleCI](https://dl.circleci.com/status-badge/img/gh/streetbyters/aduket/tree/master.svg?style=svg)](https://dl.circleci.com/status-badge/redirect/gh/streetbyters/aduket/tree/master)
+![GitHub License](https://img.shields.io/github/license/streetbyters/aduket)
+[![codecov](https://codecov.io/github/akdilsiz/aduket/graph/badge.svg?token=6YY26UIWSU)](https://codecov.io/github/akdilsiz/aduket)
 
 Simple `httptest.Server` wrapper with a little request recorder spice on it. No special DSL, no complex API to learn. Just create a server and fire your request like an **Hadouken** then assert it.
 
