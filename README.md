@@ -8,7 +8,7 @@
 
 [![CircleCI](https://dl.circleci.com/status-badge/img/gh/streetbyters/aduket/tree/master.svg?style=svg)](https://dl.circleci.com/status-badge/redirect/gh/streetbyters/aduket/tree/master)
 ![GitHub License](https://img.shields.io/github/license/streetbyters/aduket)
-[![codecov](https://codecov.io/github/akdilsiz/aduket/graph/badge.svg?token=6YY26UIWSU)](https://codecov.io/github/akdilsiz/aduket)
+[![codecov](https://codecov.io/github/streetbyters/aduket/graph/badge.svg?token=6YY26UIWSU)](https://codecov.io/github/streetbyters/aduket)
 
 Simple `httptest.Server` wrapper with a little request recorder spice on it. No special DSL, no complex API to learn. Just create a server and fire your request like an **Hadouken** then assert it.
 
